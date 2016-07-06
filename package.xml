@@ -1,0 +1,27 @@
+<package>
+	<name>droneAltitudeFiltering</name>
+	<version>1.0.0</version>
+	<description>
+    		This package is droneAltitudeFiltering.
+	</description>
+	<author email="zorana.milosevic@upm.es">Zorana Milosevic</author>
+	<maintainer email="zorana.milosevic@upm.es">Zorana Milosevic</maintainer>
+  	<license>BSD</license>
+
+  	<buildtool_depend>catkin</buildtool_depend>
+
+	<build_depend>roscpp</build_depend>
+  	<build_depend>std_msgs</build_depend>
+	<build_depend>droneMsgsROS</build_depend>
+	<build_depend>droneModuleROS</build_depend>
+
+
+	<run_depend>roscpp</run_depend>
+  	<run_depend>std_msgs</run_depend>
+        <run_depend>droneMsgsROS</run_depend>
+	<run_depend>droneModuleROS</run_depend>
+
+
+</package>
+
+

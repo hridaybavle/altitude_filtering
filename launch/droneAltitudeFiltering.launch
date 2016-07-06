@@ -1,0 +1,17 @@
+<!-- Launches: droneVSLandingROSModule -->
+<launch>
+	
+	<arg name="drone_id_namespace"  default="drone5" />
+	<arg name="drone_id_int" 	  default="5" />
+	<arg name="my_stack_directory" 	default="$(env AEROSTACK_STACK)" />
+
+	<group ns="$(arg drone_id_namespace)">
+		<node name="droneAltitudeFiltering" pkg="droneAltitudeFiltering" type="droneAltitudeFiltering" output="screen">
+			<param name="droneId" value="$(arg drone_id_int)" type="int"/>
+			<param name="stackPath" value="$(arg my_stack_directory)" type="string"/>
+	</node>
+
+
+
+	</group>
+</launch>
