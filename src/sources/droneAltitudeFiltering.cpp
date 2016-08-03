@@ -36,12 +36,10 @@ void DroneAltitudeFiltering::open(ros::NodeHandle & nIn)
 {
     DroneModule::open(nIn);
 
-    droneLidar               = n.subscribe("altitude", 1, &DroneAltitudeFiltering::droneLidarCallback, this);
-    droneLidar1              = n.subscribe("/px4flow/raw/px4Flow_pose_z", 1, &DroneAltitudeFiltering::droneLidarCallback1, this);
+    droneLidarSim            = n.subscribe("/px4flow/raw/px4Flow_pose_z", 1, &DroneAltitudeFiltering::droneLidarCallbackSim, this);
+    droneLidarReal           = n.subscribe("mavros/distance_sensor/hrlv_ez4_pub",1, &DroneAltitudeFiltering::droneLidarCallbackReal, this);
 
-
-    droneAltitudePub = n.advertise<geometry_msgs::PoseStamped>("altitudeF", 1, true);
-    droneObjectDetectedPub = n.advertise<std_msgs::Int8>("object_detected", 1, true);
+    droneAltitudePub         = n.advertise<geometry_msgs::PoseStamped>("altitudeFiltered", 1, true);
 
     init();
 
@@ -74,10 +72,6 @@ void DroneAltitudeFiltering::close()
     return;
 }
 
-
-
-
-
 bool DroneAltitudeFiltering::run()
 {
     if(!DroneModule::run())
@@ -89,13 +83,7 @@ bool DroneAltitudeFiltering::run()
     return true;
 }
 
-void DroneAltitudeFiltering::droneLidarCallback( const droneMsgsROS::droneAltitude &msg)
-{
-    //cout << -msg.altitude << endl;
-//    myfileA << -msg.altitude << endl;
-}
-
-void DroneAltitudeFiltering::droneLidarCallback1( const geometry_msgs::PoseStamped &msg)
+void DroneAltitudeFiltering::droneLidarCallbackSim( const geometry_msgs::PoseStamped &msg)
 {
 //    myfileS << msg.pose.position.z << endl;
 
@@ -163,6 +151,39 @@ void DroneAltitudeFiltering::droneLidarCallback1( const geometry_msgs::PoseStamp
 
 }
 
+void DroneAltitudeFiltering::droneLidarCallbackReal(const sensor_msgs::Range &msg)
+{
+
+    measuredAltitude = msg.range;
+
+    if (abs(measuredAltitude - lastMeasuredAltitude)>altitude_treshold)
+    {
+        object_height = object_height + (lastMeasuredAltitude - measuredAltitude);
+        cout << "Object height" << object_height << endl;
+
+        if(abs(object_height) < 0.05){
+           object_below = false;
+        }
+        else {
+           object_below = true;
+        }
+
+    }
+
+    if(object_below){
+        filteredAltitude = measuredAltitude + object_height;
+    }
+    else {
+        filteredAltitude = measuredAltitude;
+    }
+
+   altitudeData.pose.position.z = filteredAltitude;
+   PublishAltitudeData(altitudeData);
+
+
+   lastMeasuredAltitude= msg.range;
+}
+
 
 void DroneAltitudeFiltering::PublishAltitudeData(const geometry_msgs::PoseStamped &altitudemsg)
 {
@@ -170,11 +191,3 @@ void DroneAltitudeFiltering::PublishAltitudeData(const geometry_msgs::PoseStampe
        droneAltitudePub.publish(altitudemsg);
      return;
 }
-
-void DroneAltitudeFiltering::PublishObjectDetectedData(const std_msgs::Int8& objectDetectedmsg)
-{
-    if(moduleStarted == true)
-        droneObjectDetectedPub.publish(objectDetectedmsg);
-    return;
-}
-

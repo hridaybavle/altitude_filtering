@@ -50,6 +50,7 @@
 
 // Messages
 #include "std_msgs/Int32.h"
+#include "sensor_msgs/Range.h"
 
 
 //#include "otherswarmagentlistener.h"
@@ -70,17 +71,12 @@ public:
     void close();
     geometry_msgs::PoseStamped altitudeData;
 
-    void droneLidarCallback(const droneMsgsROS::droneAltitude& msg);
-
-
-    void droneLidarCallback1(const geometry_msgs::PoseStamped& msg);
-
+    void droneLidarCallbackSim(const geometry_msgs::PoseStamped& msg);
+    void droneLidarCallbackReal(const sensor_msgs::Range &msg);
 
     void open(ros::NodeHandle & nIn);
 
-
     void PublishAltitudeData(const geometry_msgs::PoseStamped &altitudemsg);
-    void PublishObjectDetectedData(const std_msgs::Int8& objectDetectedmsg);
 
     //int object_detected = 0;
     std_msgs::Int8 object_detected;
@@ -91,14 +87,10 @@ public:
 protected:
     bool init();
     //void readParameters();
-    ros::Subscriber droneLidar;
-    ros::Subscriber droneLidar1;
+    ros::Subscriber droneLidarSim;
+    ros::Subscriber droneLidarReal;
 
     ros::Publisher droneAltitudePub;
-    ros::Publisher droneObjectDetectedPub;
-
-
-
 
 public:
     bool run();
