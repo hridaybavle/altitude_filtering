@@ -13,25 +13,12 @@
 using namespace std;
 
 
-
-
-
-string ime = "/home/zorana/workspace/ros/quadrotor_stack_catkin_ws/altitudeZaSlanje.txt";
-string ime1 = "/home/zorana/workspace/ros/quadrotor_stack_catkin_ws/altitudeSenzor.txt";
-string imeZ = "/home/zorana/workspace/ros/quadrotor_stack_catkin_ws/nesto.txt";
-string imeN = "/home/zorana/workspace/ros/quadrotor_stack_catkin_ws/altitudeF.txt";
-
-
-ofstream myfileA(ime.c_str());
-ofstream myfileS(ime1.c_str());
-ofstream myfileZ(imeZ.c_str());
-ofstream myfileOut(imeN.c_str());
-
-
 DroneAltitudeFiltering::DroneAltitudeFiltering() : DroneModule(droneModule::active)
 {
     if(!init())
         std::cout<<"Error init"<<std::endl;
+
+    object_below = false;
 
     return;
 }
@@ -50,7 +37,7 @@ void DroneAltitudeFiltering::open(ros::NodeHandle & nIn)
     DroneModule::open(nIn);
 
     droneLidar               = n.subscribe("altitude", 1, &DroneAltitudeFiltering::droneLidarCallback, this);
-    droneLidar1               = n.subscribe("/px4flow/raw/px4Flow_pose_z", 1, &DroneAltitudeFiltering::droneLidarCallback1, this);
+    droneLidar1              = n.subscribe("/px4flow/raw/px4Flow_pose_z", 1, &DroneAltitudeFiltering::droneLidarCallback1, this);
 
 
     droneAltitudePub = n.advertise<geometry_msgs::PoseStamped>("altitudeF", 1, true);
@@ -72,9 +59,10 @@ void DroneAltitudeFiltering::open(ros::NodeHandle & nIn)
 
 bool DroneAltitudeFiltering::init()
 {
-    measuredAltitude=filteredAltitude=0.0;
-    altitude_treshold = 0.25;
+    //measuredAltitude=filteredAltitude=0.0;
+    altitude_treshold    = 0.25;
     object_detected.data = 0;
+    object_height        = 0;
 
     return true;
 }
@@ -104,14 +92,13 @@ bool DroneAltitudeFiltering::run()
 void DroneAltitudeFiltering::droneLidarCallback( const droneMsgsROS::droneAltitude &msg)
 {
     //cout << -msg.altitude << endl;
-    myfileA << -msg.altitude << endl;
+//    myfileA << -msg.altitude << endl;
 }
 
 void DroneAltitudeFiltering::droneLidarCallback1( const geometry_msgs::PoseStamped &msg)
 {
-    myfileS << msg.pose.position.z << endl;
+//    myfileS << msg.pose.position.z << endl;
 
-    measuredAltitude = msg.pose.position.z;
 //    int p;
 //    p=object_detected.data;
 //    switch (p)
@@ -145,9 +132,12 @@ void DroneAltitudeFiltering::droneLidarCallback1( const geometry_msgs::PoseStamp
 //    PublishAltitudeData(altitudeData);
 //    myfileZ<<p<<endl;
 
+     measuredAltitude = msg.pose.position.z;
+
      if (abs(measuredAltitude - lastMeasuredAltitude)>altitude_treshold)
      {
-         object_height =+ lastMeasuredAltitude - measuredAltitude;
+         object_height = object_height + (lastMeasuredAltitude - measuredAltitude);
+         cout << "Object height" << object_height << endl;
 
          if(abs(object_height) < 0.05){
             object_below = false;
@@ -164,6 +154,9 @@ void DroneAltitudeFiltering::droneLidarCallback1( const geometry_msgs::PoseStamp
      else {
          filteredAltitude = measuredAltitude;
      }
+
+    altitudeData.pose.position.z = filteredAltitude;
+    PublishAltitudeData(altitudeData);
 
 
     lastMeasuredAltitude=msg.pose.position.z;
