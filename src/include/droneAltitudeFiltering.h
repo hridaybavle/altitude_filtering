@@ -106,6 +106,7 @@ public:
 
 public:
     float measuredAltitude, lastMeasuredAltitude, filteredAltitude, altitude_treshold;
+    bool object_below;
 };
 
 

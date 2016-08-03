@@ -112,38 +112,59 @@ void DroneAltitudeFiltering::droneLidarCallback1( const geometry_msgs::PoseStamp
     myfileS << msg.pose.position.z << endl;
 
     measuredAltitude = msg.pose.position.z;
-    int p;
-    p=object_detected.data;
-    switch (p)
-    {
-    case 0:
-        if (abs(measuredAltitude - lastMeasuredAltitude)>altitude_treshold) {
-            object_detected.data = 1;
-            object_height = (measuredAltitude - lastMeasuredAltitude);
-            filteredAltitude = lastMeasuredAltitude;
-        }
-        else
-            filteredAltitude = measuredAltitude;
-        break;
-    case 1:
-        if (abs(measuredAltitude - lastMeasuredAltitude)>altitude_treshold) {
-            object_detected.data = 0;
-            filteredAltitude = measuredAltitude;
-        }
-        else
-            filteredAltitude = measuredAltitude - object_height;
-        break;
-    }
+//    int p;
+//    p=object_detected.data;
+//    switch (p)
+//    {
+//    case 0:
+//        if (abs(measuredAltitude - lastMeasuredAltitude)>altitude_treshold) {
+//            object_detected.data = 1;
+//            object_height = (measuredAltitude - lastMeasuredAltitude);
+//            filteredAltitude = lastMeasuredAltitude;
+//        }
+//        else
+//            filteredAltitude = measuredAltitude;
+//        break;
+//    case 1:
+//        if (abs(measuredAltitude - lastMeasuredAltitude)>altitude_treshold) {
+//            object_detected.data = 0;
+//            filteredAltitude = measuredAltitude;
+//        }
+//        else
+//            filteredAltitude = measuredAltitude - object_height;
+//        break;
+//    }
 
-    altitudeData.pose.position.z = filteredAltitude;
+//    altitudeData.pose.position.z = filteredAltitude;
 
-    PublishObjectDetectedData(object_detected);
+//    PublishObjectDetectedData(object_detected);
 
 
-    myfileOut << filteredAltitude <<endl;
+//    myfileOut << filteredAltitude <<endl;
 
-    PublishAltitudeData(altitudeData);
-    myfileZ<<p<<endl;
+//    PublishAltitudeData(altitudeData);
+//    myfileZ<<p<<endl;
+
+     if (abs(measuredAltitude - lastMeasuredAltitude)>altitude_treshold)
+     {
+         object_height =+ lastMeasuredAltitude - measuredAltitude;
+
+         if(abs(object_height) < 0.05){
+            object_below = false;
+         }
+         else {
+            object_below = true;
+         }
+
+     }
+
+     if(object_below){
+         filteredAltitude = measuredAltitude + object_height;
+     }
+     else {
+         filteredAltitude = measuredAltitude;
+     }
+
 
     lastMeasuredAltitude=msg.pose.position.z;
 
