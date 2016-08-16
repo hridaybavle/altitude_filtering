@@ -7,26 +7,6 @@
 #ifndef DRONE_ALTITUDE_FILTERING_H
 #define DRONE_ALTITUDE_FILTERING_H
 
-#include "ros/ros.h"
-
-#include "opencv2/highgui/highgui.hpp"
-#include <nav_msgs/Odometry.h>
-#include <droneMsgsROS/droneAltitude.h>
-
-#include "droneModuleROS.h"
-
-#include "geometry_msgs/PoseStamped.h"
-
-#include <vector>
-
-#include "std_msgs/Int8.h"
-
-
-#include <sstream>
-
-
-// ROS
-#include "ros/ros.h"
 
 // C++ standar libraries
 #include <cstdlib>
@@ -39,24 +19,35 @@
 #include <algorithm>
 #include <sstream>
 #include <string>
+#include <cmath>
+
+// ROS
+#include "ros/ros.h"
+
+#include "sensor_msgs/Range.h"
+#include "sensor_msgs/FluidPressure.h"
+#include "sensor_msgs/Temperature.h"
+#include <nav_msgs/Odometry.h>
+#include "geometry_msgs/PoseStamped.h"
+#include "sensor_msgs/Imu.h"
+#include "geometry_msgs/Vector3Stamped.h"
 
 // DroneModule parent class
 #include "droneModuleROS.h"
 
 // droneMsgsROS
 #include "droneMsgsROS/droneNavData.h"
-#include "droneMsgsROS/societyPose.h"
-#include "droneMsgsROS/droneInfo.h"
+#include <droneMsgsROS/droneAltitude.h>
 
-// Messages
+//std_msgs
 #include "std_msgs/Int32.h"
-#include "sensor_msgs/Range.h"
+
+//Eigen
+#include <eigen3/Eigen/Core>
+#include <eigen3/Eigen/Dense>
 
 
-//#include "otherswarmagentlistener.h"
-
-
-
+const double Pressure_sea_level = 101325;
 
 class DroneAltitudeFiltering: public DroneModule
 {
@@ -73,15 +64,30 @@ public:
 
     void droneLidarCallbackSim(const geometry_msgs::PoseStamped& msg);
     void droneLidarCallbackReal(const sensor_msgs::Range &msg);
+    void droneImuCallback(const sensor_msgs::Imu &msg);
+    void droneRotationAnglesCallback(const geometry_msgs::Vector3Stamped &msg);
+    void droneAtmPressureCallback(const sensor_msgs::FluidPressure &msg);
+    void droneTemperatureCallback(const sensor_msgs::Temperature &msg);
 
     void open(ros::NodeHandle & nIn);
 
     void PublishAltitudeData(const geometry_msgs::PoseStamped &altitudemsg);
+    void OpenModel();
 
-    //int object_detected = 0;
-    std_msgs::Int8 object_detected;
-    float object_height;
+    float object_height, angular_velocity, linear_acceleration_z;
+    float pitch_angle;
+    float atm_pressure, temperature, barometer_height, first_barometer_height;
+    float counter;
 
+    double Pb;
+    double hb;
+    double R_as;
+    double G0;
+    double Lb;
+    double Tb;
+    double P;
+    double M;
+    double nn, nd, ndiff,ndiv, d;
 
 
 protected:
@@ -89,6 +95,10 @@ protected:
     //void readParameters();
     ros::Subscriber droneLidarSim;
     ros::Subscriber droneLidarReal;
+    ros::Subscriber droneImuSub;
+    ros::Subscriber droneRotationAnglesSub;
+    ros::Subscriber droneAtmPressureSub;
+    ros::Subscriber droneTemperatureSub;
 
     ros::Publisher droneAltitudePub;
 

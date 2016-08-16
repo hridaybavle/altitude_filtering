@@ -10,7 +10,7 @@ int main(int argc, char **argv)
 {
 
     ros::init(argc, argv, "DroneAltitudeFiltering");
-    ros::AsyncSpinner spinner(1);
+//    ros::AsyncSpinner spinner(1);
     ros::NodeHandle n;
 
     //Init
@@ -23,11 +23,19 @@ int main(int argc, char **argv)
 
     try
     {
-        spinner.start();
-        while(ros::ok())
-            MyDroneAltitudeFiltering.run();
-        spinner.stop();
-        return 1;
+         while(ros::ok())
+         {
+        //Read messages
+        ros::spinOnce();
+
+//        spinner.start();
+          if(MyDroneAltitudeFiltering.run())
+          {
+
+          }
+          MyDroneAltitudeFiltering.sleep();
+//        spinner.stop();
+         }
     }
     catch (std::exception &ex)
     {

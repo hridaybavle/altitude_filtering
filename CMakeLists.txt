@@ -49,6 +49,13 @@ catkin_package(
         CATKIN_DEPENDS roscpp  droneMsgsROS droneModuleROS std_msgs
   )
 
+find_package( PkgConfig REQUIRED)
+pkg_check_modules( EIGEN3 REQUIRED eigen3 )
+
+include_directories(include
+        ${EIGEN3_INCLUDE_DIR}
+        "/usr/include/eigen3"
+)
 
 include_directories(${DRONE_ALTITUDE_FILTERING_INCLUDE_DIR})
 include_directories(${catkin_INCLUDE_DIRS})
