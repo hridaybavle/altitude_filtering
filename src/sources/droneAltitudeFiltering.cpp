@@ -50,7 +50,7 @@ void DroneAltitudeFiltering::open(ros::NodeHandle & nIn)
     droneAtmPressureSub      = n.subscribe("mavros/imu/atm_pressure",1,&DroneAltitudeFiltering::droneAtmPressureCallback, this);
     droneTemperatureSub      = n.subscribe("mavros/imu/temperature",1,&DroneAltitudeFiltering::droneTemperatureCallback, this);
 
-    droneAltitudePub         = n.advertise<geometry_msgs::PoseStamped>("altitudeFilteredEkf", 1, true);
+    droneAltitudePub         = n.advertise<geometry_msgs::PoseStamped>("altitudeFiltered", 1, true);
 
     init();
 
@@ -271,9 +271,9 @@ void DroneAltitudeFiltering::OpenModel()
 
     //  Filling in the measurement covariance
     R(0,0) = 0.1;
-    R(1,1) = 10.0;
+    R(1,1) = 1000000.0;
     R(2,2) = 10*(M_PI/180);
-    R(3,3) = 10.0;
+    R(3,3) = 0.00001;
     R(4,4) = 0.1;
 
     return;
