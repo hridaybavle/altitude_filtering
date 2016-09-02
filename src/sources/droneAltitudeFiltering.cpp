@@ -17,12 +17,13 @@ Eigen::MatrixXd H(5,7), R(5,5);
 Eigen::MatrixXd x_k1k(7,1), p_k1k(7,7);
 Eigen::MatrixXd z_est_k(5,1);
 Eigen::MatrixXd v(5,1), S(5,5);
+Eigen::MatrixXd dis_mahala(5,1);
 Eigen::MatrixXd K(7,5);
 Eigen::MatrixXd x_k1k1(7,1), p_k1k1(7,7);
 Eigen::MatrixXd I(7,7);
 
 
-DroneAltitudeFiltering::DroneAltitudeFiltering() : DroneModule(droneModule::active, 10)
+DroneAltitudeFiltering::DroneAltitudeFiltering() : DroneModule(droneModule::active, 100)
 {
     if(!init())
         std::cout<<"Error init"<<std::endl;
@@ -209,6 +210,15 @@ bool DroneAltitudeFiltering::run()
     //Innovation (or residual) covariance
     S=H*p_k1k*(H.transpose().eval()) + R;
 
+  	  
+    // dis_mahala=(v.transpose().eval())*S*v;
+   //  if(dis_mahala(0,0) > 1e3){
+    //    x_kk=x_k1k;
+   //     p_kk=p_k1k;
+	//		}
+
+
+
     //Near-optimal Kalman gain
     K=p_k1k*(H.transpose().eval())*(S.inverse());
 
@@ -270,11 +280,11 @@ void DroneAltitudeFiltering::OpenModel()
 
 
     //  Filling in the measurement covariance
-    R(0,0) = 0.1;
-    R(1,1) = 1000000.0;
-    R(2,2) = 10*(M_PI/180);
-    R(3,3) = 0.00001;
-    R(4,4) = 0.1;
+    R(0,0) = 0.01;    							// altitude by lidar
+    R(1,1) = 0.1;									  // accelerations by the imu
+    R(2,2) = 10*(M_PI/180);					// angular velocity by imu	
+    R(3,3) = 0.8;										// alitude by barometer
+    R(4,4) = 1.0;										// pitch angle 
 
     return;
 }
