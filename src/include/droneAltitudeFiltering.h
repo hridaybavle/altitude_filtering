@@ -32,6 +32,9 @@
 #include "sensor_msgs/Imu.h"
 #include "geometry_msgs/Vector3Stamped.h"
 
+//mavros
+#include "mavros_msgs/Altitude.h"
+
 // DroneModule parent class
 #include "droneModuleROS.h"
 
@@ -68,6 +71,7 @@ public:
     void droneRotationAnglesCallback(const geometry_msgs::Vector3Stamped &msg);
     void droneAtmPressureCallback(const sensor_msgs::FluidPressure &msg);
     void droneTemperatureCallback(const sensor_msgs::Temperature &msg);
+    void droneMavrosAltitudeCallback(const mavros_msgs::Altitude &msg);
 
     void open(ros::NodeHandle & nIn);
 
@@ -99,6 +103,7 @@ protected:
     ros::Subscriber droneRotationAnglesSub;
     ros::Subscriber droneAtmPressureSub;
     ros::Subscriber droneTemperatureSub;
+    ros::Subscriber droneMavrosAltitudeSub;
 
     ros::Publisher droneAltitudePub;
 

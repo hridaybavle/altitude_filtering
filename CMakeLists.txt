@@ -42,11 +42,11 @@ set(DRONE_ALTITUDE_FILTERING_HEADER_FILES
 
 
 find_package(catkin REQUIRED
-                COMPONENTS roscpp  droneMsgsROS droneModuleROS std_msgs)
+                COMPONENTS roscpp  droneMsgsROS droneModuleROS std_msgs mavros_msgs)
 
 
 catkin_package(
-        CATKIN_DEPENDS roscpp  droneMsgsROS droneModuleROS std_msgs
+        CATKIN_DEPENDS roscpp  droneMsgsROS droneModuleROS std_msgs mavros_msgs
   )
 
 find_package( PkgConfig REQUIRED)

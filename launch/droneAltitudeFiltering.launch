@@ -2,7 +2,7 @@
 <launch>
 	
 	<arg name="drone_id_namespace"  default="drone3" />
-	<arg name="drone_id_int" 	  default="3" />
+	<arg name="drone_id_int" 	  		default="3" />
 	<arg name="my_stack_directory" 	default="$(env AEROSTACK_STACK)" />
 
 	<group ns="$(arg drone_id_namespace)">

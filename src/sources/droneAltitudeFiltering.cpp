@@ -50,6 +50,7 @@ void DroneAltitudeFiltering::open(ros::NodeHandle & nIn)
     droneRotationAnglesSub   = n.subscribe("rotation_angles",1, &DroneAltitudeFiltering::droneRotationAnglesCallback, this);
     droneAtmPressureSub      = n.subscribe("mavros/imu/atm_pressure",1,&DroneAltitudeFiltering::droneAtmPressureCallback, this);
     droneTemperatureSub      = n.subscribe("mavros/imu/temperature",1,&DroneAltitudeFiltering::droneTemperatureCallback, this);
+    droneMavrosAltitudeSub   = n.subscribe("mavros/altitude",1, &DroneAltitudeFiltering::droneMavrosAltitudeCallback, this);
 
     droneAltitudePub         = n.advertise<geometry_msgs::PoseStamped>("altitudeFiltered", 1, true);
 
@@ -422,14 +423,14 @@ void DroneAltitudeFiltering::droneAtmPressureCallback(const sensor_msgs::FluidPr
     //       cout << "ndiv " << ndiv << endl;
     d = Lb;
 
-    if(counter == 0){
-        first_barometer_height = ndiv / d + hb;
-        counter++;
-    }
+//    if(counter == 0){
+//        first_barometer_height = ndiv / d + hb;
+//        counter++;
+//    }
 
-    barometer_height = ndiv / d + hb;
+//    barometer_height = ndiv / d + hb;
 
-    barometer_height = barometer_height - first_barometer_height;
+//    barometer_height = barometer_height - first_barometer_height;
 
     //        cout << "barometer_height" << barometer_height << endl;
 
@@ -441,6 +442,20 @@ void DroneAltitudeFiltering::droneTemperatureCallback(const sensor_msgs::Tempera
     temperature = msg.temperature;
     //    cout << "temperature" << temperature << endl;
     return;
+}
+
+void DroneAltitudeFiltering::droneMavrosAltitudeCallback(const mavros_msgs::Altitude &msg)
+{
+    barometer_height = msg.local;
+
+    if(counter == 0){
+        first_barometer_height = msg.local;
+        counter++;
+    }
+
+    barometer_height = barometer_height - first_barometer_height;
+    cout << "barometer_height" << barometer_height << endl;
+
 }
 
 void DroneAltitudeFiltering::PublishAltitudeData(const geometry_msgs::PoseStamped &altitudemsg)
