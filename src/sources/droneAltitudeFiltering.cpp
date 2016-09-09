@@ -51,7 +51,7 @@ void DroneAltitudeFiltering::open(ros::NodeHandle & nIn)
     droneAtmPressureSub      = n.subscribe("mavros/imu/atm_pressure",1,&DroneAltitudeFiltering::droneAtmPressureCallback, this);
     droneTemperatureSub      = n.subscribe("mavros/imu/temperature",1,&DroneAltitudeFiltering::droneTemperatureCallback, this);
     droneMavrosAltitudeSub   = n.subscribe("mavros/altitude",1, &DroneAltitudeFiltering::droneMavrosAltitudeCallback, this);
-		droneStatusSub           = n.subscribe("status",1, &DroneAltitudeFiltering::droneStatusCallback, this);
+    droneStatusSub           = n.subscribe("status",1, &DroneAltitudeFiltering::droneStatusCallback, this);
 
     droneAltitudePub         = n.advertise<geometry_msgs::PoseStamped>("altitudeFiltered", 1, true);
 
@@ -90,9 +90,9 @@ bool DroneAltitudeFiltering::init()
     barometer_height       = 0;
     pitch_angle            = 0;
     first_barometer_height = 0;
-		first_measured_lidar_altitude = 0;
-    Pb    = 101325;       // [Pa]
-    hb    = 0;            // [m]
+    first_measured_lidar_altitude = 0;
+    Pb     = 101325;       // [Pa]
+    hb     = 0;            // [m]
     R_as   = 8.31432;     // [N*m/(mol*K)]
     G0     = 9.80665;     // [m/s.^2]
     Lb     = -0.0065;     // [K/m]
@@ -124,17 +124,6 @@ bool DroneAltitudeFiltering::run()
 //      P_k1k=F*P_kk*F'+T;
 
 //      % Update
-//      % Op 1
-//  %     z_est_k(1,1)=(x_kk(1)- x_kk(6))/cos(x_kk(4));
-//  %     z_est_k(2,1)=x_kk(3);
-//  %     z_est_k(3,1)=x_kk(5);
-//  %
-//      % Op 2
-//  %     z_est_k(1,1)=(x_kk(1)- x_kk(6))/cos(x_kk(4));
-//  %     z_est_k(2,1)=x_kk(3);
-//  %     z_est_k(3,1)=x_kk(5);
-//  %     z_est_k(4,1)=x_kk(2);
-
 //       % Op 3
 //      z_est_k(1,1)=(x_kk(1)- x_kk(6))/cos(x_kk(4));
 //      z_est_k(2,1)=x_kk(3);
@@ -194,7 +183,7 @@ bool DroneAltitudeFiltering::run()
     H(0,3) = (x_kk(0,0) - x_kk(5,0))*sin(x_kk(3,0))/cos(x_kk(3,0));
     H(0,5) = -1.0/cos(x_kk(3.0));
     H(1,2) = 1.0;
-		H(1,7) = 1.0;
+    H(1,7) = 1.0;
     H(2,4) = 1.0;
     H(3,0) = 1.0;
     H(3,6) = 1.0;
@@ -256,11 +245,11 @@ void DroneAltitudeFiltering::OpenModel()
     x_kk(4,0) = 0;
     x_kk(5,0) = 0;
     x_kk(6,0) = 0;
-		x_kk(7,0) = 0;
+    x_kk(7,0) = 0;
 
     //Filling the predicted covariance estimate p_kk
     p_kk(6,6) = 10;
-		p_kk(7,7) = 10;
+    p_kk(7,7) = 10;
 
     //Filling in the process covariance Q
     T(0,0) = 0;
@@ -270,7 +259,7 @@ void DroneAltitudeFiltering::OpenModel()
     T(4,4) = 0.01;
     T(5,5) = 10;
     T(6,6) = 0;
-		T(7,7) = 0;
+    T(7,7) = 0;
 
     //Filling in the process jacobian
     F(0,0) = 1.0;
@@ -284,15 +273,15 @@ void DroneAltitudeFiltering::OpenModel()
     F(4,4) = 1.0;
     F(5,5) = 1.0;
     F(6,6) = 1.0;
-		F(7,7) = 1.0;
+    F(7,7) = 1.0;
 
 
     //  Filling in the measurement covariance
-    R(0,0) = 1.0;    					// altitude by lidar
-    R(1,1) = 0.1;									  // accelerations by the imu
+    R(0,0) = 1.0;                           // altitude by lidar
+    R(1,1) = 0.1;							// accelerations by the imu
     R(2,2) = 10*(M_PI/180);					// angular velocity by imu	
-    R(3,3) = 1.0;									  // alitude by barometer
-    R(4,4) = 1.0;										// pitch angle 
+    R(3,3) = 1.0;                           // alitude by barometer
+    R(4,4) = 1.0;							// pitch angle
 
     return;
 }
@@ -302,29 +291,29 @@ void DroneAltitudeFiltering::droneLidarCallbackSim( const geometry_msgs::PoseSta
 
      measuredAltitude = msg.pose.position.z;
 
-     if (abs(measuredAltitude - lastMeasuredAltitude)>altitude_treshold)
-     {
-         object_height = object_height + (lastMeasuredAltitude - measuredAltitude);
-         cout << "Object height" << object_height << endl;
+//     if (abs(measuredAltitude - lastMeasuredAltitude)>altitude_treshold)
+//     {
+//         object_height = object_height + (lastMeasuredAltitude - measuredAltitude);
+//         cout << "Object height" << object_height << endl;
 
-         if(abs(object_height) < 0.05){
-            object_below = false;
-         }
-         else {
-            object_below = true;
-         }
+//         if(abs(object_height) < 0.05){
+//            object_below = false;
+//         }
+//         else {
+//            object_below = true;
+//         }
 
-     }
+//     }
 
-     if(object_below){
-         filteredAltitude = measuredAltitude + object_height;
-     }
-     else {
-         filteredAltitude = measuredAltitude;
-     }
+//     if(object_below){
+//         filteredAltitude = measuredAltitude + object_height;
+//     }
+//     else {
+//         filteredAltitude = measuredAltitude;
+//     }
 
-    altitudeData.pose.position.z = filteredAltitude;
-    //PublishAltitudeData(altitudeData);
+//    altitudeData.pose.position.z = filteredAltitude;
+//    //PublishAltitudeData(altitudeData);
 
 
     lastMeasuredAltitude=msg.pose.position.z;
@@ -336,28 +325,28 @@ void DroneAltitudeFiltering::droneLidarCallbackReal(const sensor_msgs::Range &ms
 
     measuredAltitude = msg.range;
 
-    if (abs(measuredAltitude - lastMeasuredAltitude)>altitude_treshold)
-    {
-        object_height = object_height + (lastMeasuredAltitude - measuredAltitude);
-        cout << "Object height" << object_height << endl;
+//    if (abs(measuredAltitude - lastMeasuredAltitude)>altitude_treshold)
+//    {
+//        object_height = object_height + (lastMeasuredAltitude - measuredAltitude);
+//        cout << "Object height" << object_height << endl;
 
-        if(abs(object_height) < 0.05){
-           object_below = false;
-        }
-        else {
-           object_below = true;
-        }
+//        if(abs(object_height) < 0.05){
+//           object_below = false;
+//        }
+//        else {
+//           object_below = true;
+//        }
 
-    }
+//    }
 
-    if(object_below){
-        filteredAltitude = measuredAltitude + object_height;
-    }
-    else {
-        filteredAltitude = measuredAltitude;
-    }
+//    if(object_below){
+//        filteredAltitude = measuredAltitude + object_height;
+//    }
+//    else {
+//        filteredAltitude = measuredAltitude;
+//    }
 
-   altitudeData.pose.position.z = filteredAltitude;
+//  altitudeData.pose.position.z = filteredAltitude;
    //PublishAltitudeData(altitudeData);
 
 
@@ -467,14 +456,14 @@ void DroneAltitudeFiltering::droneMavrosAltitudeCallback(const mavros_msgs::Alti
         counter++;
     }
 
-				cout << "first barometer height " << first_barometer_height << endl;
-				cout << "first lidar height"      << first_measured_lidar_altitude << endl;
-				cout << "barometer_height - first_barometer_height " << msg.local - first_barometer_height << endl;
-        barometer_height = first_measured_lidar_altitude + (msg.local - first_barometer_height);
+//    cout << "first barometer height " << first_barometer_height << endl;
+//    cout << "first lidar height"      << first_measured_lidar_altitude << endl;
+//    cout << "barometer_height - first_barometer_height " << msg.local - first_barometer_height << endl;
+    barometer_height = first_measured_lidar_altitude + (msg.local - first_barometer_height);
 
     }
 
-    cout << "barometer_height" << barometer_height << endl;
+   // cout << "barometer_height" << barometer_height << endl;
 
 }
 
