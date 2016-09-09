@@ -41,6 +41,7 @@
 // droneMsgsROS
 #include "droneMsgsROS/droneNavData.h"
 #include <droneMsgsROS/droneAltitude.h>
+#include "droneMsgsROS/droneStatus.h"
 
 //std_msgs
 #include "std_msgs/Int32.h"
@@ -72,6 +73,7 @@ public:
     void droneAtmPressureCallback(const sensor_msgs::FluidPressure &msg);
     void droneTemperatureCallback(const sensor_msgs::Temperature &msg);
     void droneMavrosAltitudeCallback(const mavros_msgs::Altitude &msg);
+    void droneStatusCallback(const droneMsgsROS::droneStatus &msg);
 
     void open(ros::NodeHandle & nIn);
 
@@ -81,6 +83,7 @@ public:
     float object_height, angular_velocity, linear_acceleration_z;
     float pitch_angle;
     float atm_pressure, temperature, barometer_height, first_barometer_height;
+		float first_measured_lidar_altitude;
     float counter;
 
     double Pb;
@@ -104,6 +107,7 @@ protected:
     ros::Subscriber droneAtmPressureSub;
     ros::Subscriber droneTemperatureSub;
     ros::Subscriber droneMavrosAltitudeSub;
+    ros::Subscriber droneStatusSub;
 
     ros::Publisher droneAltitudePub;
 
@@ -114,7 +118,9 @@ public:
 public:
     float measuredAltitude, lastMeasuredAltitude, filteredAltitude, altitude_treshold;
     bool object_below;
+    droneMsgsROS::droneStatus droneStatus;
 };
 
 
 #endif
+
