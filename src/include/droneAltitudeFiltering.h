@@ -113,6 +113,7 @@ protected:
 
 public:
     bool run();
+		bool resetValues();
 
 
 public:
