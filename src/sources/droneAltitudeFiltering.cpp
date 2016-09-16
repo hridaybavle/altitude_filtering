@@ -214,14 +214,6 @@ bool DroneAltitudeFiltering::run()
     //Innovation (or residual) covariance
     S=H*p_k1k*(H.transpose().eval()) + R;
 
-  	  
-    // dis_mahala=(v.transpose().eval())*S*v;
-   //  if(dis_mahala(0,0) > 1e3){
-    //    x_kk=x_k1k;
-   //     p_kk=p_k1k;
-	//		}
-
-
 
     //Near-optimal Kalman gain
     K=p_k1k*(H.transpose().eval())*(S.inverse());
@@ -236,11 +228,21 @@ bool DroneAltitudeFiltering::run()
     x_kk=x_k1k1;
     p_kk=p_k1k1;
 
-    cout << "x_kk(5,0) " << x_kk(5,0) << endl;
+		// if the altitude overshoots 
+		 //dis_mahala =(v.transpose().eval())*S*v;
+     //if(dis_mahala(0,0) > 1e1){
+			//	cout << "entered maha dist"  << endl;
+      //  x_kk=x_k1k;
+      //  p_kk=p_k1k;
+			// }		
+		
+		//cout << "Dist maha" << dis_mahala << endl;
+    //cout << "x_kk(5,0) " << x_kk(5,0) << endl;
 
     altitudeData.header.stamp       = ros::Time::now();
     altitudeData.pose.position.z    = x_kk(0,0);
     if(altitudeData.pose.position.z < 0) altitudeData.pose.position.z = 0;
+		//if(altitudeData.pose.position.z > 1.5) altitudeData.pose.position.z = 1.5;
     droneAltitudePub.publish(altitudeData);
 
     return true;
@@ -288,11 +290,11 @@ void DroneAltitudeFiltering::OpenModel()
 
 
     //  Filling in the measurement covariance
-    R(0,0) = 0.1;                           // altitude by lidar
-    R(1,1) = 0.01;							// accelerations by the imu
-    R(2,2) = 10*(M_PI/180);					// angular velocity by imu	
-    R(3,3) = 0.1;                           // alitude by barometer
-    R(4,4) = 1.0;							// pitch angle
+    R(0,0) = 10.0;               // altitude by lidar
+    R(1,1) = 10.0;							// accelerations by the imu
+    R(2,2) = 10*(M_PI/180);			// angular velocity by imu	
+    R(3,3) = 0.1;               // alitude by barometer
+    R(4,4) = 1.0;							  // pitch angle
 
     return;
 }
@@ -334,7 +336,7 @@ void DroneAltitudeFiltering::droneLidarCallbackSim( const geometry_msgs::PoseSta
 void DroneAltitudeFiltering::droneLidarCallbackReal(const sensor_msgs::Range &msg)
 {
 
-    measuredAltitude = msg.range + 0.2;
+    measuredAltitude = msg.range;
 		
 		if(measuredAltitude > 1.5)
 			{	
@@ -479,8 +481,8 @@ void DroneAltitudeFiltering::droneMavrosAltitudeCallback(const mavros_msgs::Alti
 //    cout << "first lidar height"      << first_measured_lidar_altitude << endl;
 //    cout << "barometer_height - first_barometer_height " << msg.local - first_barometer_height << endl;
     barometer_height = first_measured_lidar_altitude + (msg.local - first_barometer_height);
-
-    }
+   }
+		
 
 //    cout << "barometer_height" << barometer_height << endl;
 
