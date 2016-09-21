@@ -65,6 +65,7 @@ public:
     //void open(ros::NodeHandle & nIn, std::string moduleName);
     void close();
     geometry_msgs::PoseStamped altitudeData;
+		geometry_msgs::PoseStamped barometerData;
 
     void droneLidarCallbackSim(const geometry_msgs::PoseStamped& msg);
     void droneLidarCallbackReal(const sensor_msgs::Range &msg);
@@ -110,6 +111,7 @@ protected:
     ros::Subscriber droneStatusSub;
 
     ros::Publisher droneAltitudePub;
+		ros::Publisher droneBarometerHeightPub;
 
 public:
     bool run();
