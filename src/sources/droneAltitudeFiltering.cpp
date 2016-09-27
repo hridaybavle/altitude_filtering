@@ -54,7 +54,8 @@ void DroneAltitudeFiltering::open(ros::NodeHandle & nIn)
     droneStatusSub           = n.subscribe("status",1, &DroneAltitudeFiltering::droneStatusCallback, this);
 
     droneAltitudePub         = n.advertise<geometry_msgs::PoseStamped>("altitudeFiltered", 1, true);
-		droneBarometerHeightPub  = n.advertise<geometry_msgs::PoseStamped>("altitudeBarometer",1, true);		
+    droneBarometerHeightPub  = n.advertise<geometry_msgs::PoseStamped>("altitudeBarometer",1, true);
+    droneObjectHeightPub     = n.advertise<geometry_msgs::PoseStamped>("objectHeight",1,true);
 
     init();
 
@@ -113,13 +114,13 @@ void DroneAltitudeFiltering::close()
 
 bool DroneAltitudeFiltering::resetValues()
 {
-		if(!DroneModule::resetValues())
-       return false;
+    if(!DroneModule::resetValues())
+        return false;
 
-		counter = 0;
+    counter = 0;
 
-		return true;
-	
+    return true;
+
 }
 
 bool DroneAltitudeFiltering::run()
@@ -131,47 +132,47 @@ bool DroneAltitudeFiltering::run()
         return false;
 
 
-//    % Predict
-//      x_k1k=F*x_kk;
-//      P_k1k=F*P_kk*F'+T;
+    //    % Predict
+    //      x_k1k=F*x_kk;
+    //      P_k1k=F*P_kk*F'+T;
 
-//      % Update
-//       % Op 3
-//      z_est_k(1,1)=(x_kk(1)- x_kk(6))/cos(x_kk(4));
-//      z_est_k(2,1)=x_kk(3);
-//      z_est_k(3,1)=x_kk(5);
-//      z_est_k(4,1)=x_kk(1) + x_kk(7);
-//      z_est_k(5,1)=x_kk(4);
-//      v=meas(i,:)'-z_est_k;
+    //      % Update
+    //       % Op 3
+    //      z_est_k(1,1)=(x_kk(1)- x_kk(6))/cos(x_kk(4));
+    //      z_est_k(2,1)=x_kk(3);
+    //      z_est_k(3,1)=x_kk(5);
+    //      z_est_k(4,1)=x_kk(1) + x_kk(7);
+    //      z_est_k(5,1)=x_kk(4);
+    //      v=meas(i,:)'-z_est_k;
 
-//       %Innovation (or residual) covariance
-//       S=H*P_k1k*H'+R;
+    //       %Innovation (or residual) covariance
+    //       S=H*P_k1k*H'+R;
 
-//       dis_mahala=v'*S*v;
-//   %     if(dis_mahala > 1e3)
-//   %         % Store
-//   %         output(i,:)=x_k1k';
-//   %         % Next iteration
-//   %         x_kk=x_k1k;
-//   %         P_kk=P_k1k;
-//   %         continue;
-//   %     end
+    //       dis_mahala=v'*S*v;
+    //   %     if(dis_mahala > 1e3)
+    //   %         % Store
+    //   %         output(i,:)=x_k1k';
+    //   %         % Next iteration
+    //   %         x_kk=x_k1k;
+    //   %         P_kk=P_k1k;
+    //   %         continue;
+    //   %     end
 
-//       %Near-optimal Kalman gain
-//       K=P_k1k*H'*inv(S);
+    //       %Near-optimal Kalman gain
+    //       K=P_k1k*H'*inv(S);
 
-//       %Updated state estimate
-//       x_k1k1=x_k1k+K*v;
+    //       %Updated state estimate
+    //       x_k1k1=x_k1k+K*v;
 
-//       %Updated covariance estimate
-//       P_k1k1=(eye(dim_state,dim_state)-K*H)*P_k1k;
+    //       %Updated covariance estimate
+    //       P_k1k1=(eye(dim_state,dim_state)-K*H)*P_k1k;
 
-//       % Store to display
-//       output(i,:)=x_k1k1';
+    //       % Store to display
+    //       output(i,:)=x_k1k1';
 
-//       % Next iteration
-//       x_kk=x_k1k1;
-//       P_kk=P_k1k1;
+    //       % Next iteration
+    //       x_kk=x_k1k1;
+    //       P_kk=P_k1k1;
 
     //Prediction stage
     x_k1k           = F*x_kk;
@@ -223,28 +224,33 @@ bool DroneAltitudeFiltering::run()
     x_k1k1=x_k1k+K*v;
 
     //Updated covariance estimate
-    p_k1k1=((I.setIdentity(8,8))-K*H)*p_k1k;	
+    p_k1k1=((I.setIdentity(8,8))-K*H)*p_k1k;
 
     //Next iteration
     x_kk=x_k1k1;
     p_kk=p_k1k1;
 
-		// if the altitude overshoots 
-		 //dis_mahala =(v.transpose().eval())*S*v;
-     //if(dis_mahala(0,0) > 1e1){
-			//	cout << "entered maha dist"  << endl;
-      //  x_kk=x_k1k;
-      //  p_kk=p_k1k;
-			// }		
-		
-		//cout << "Dist maha" << dis_mahala << endl;
+    // if the altitude overshoots
+    //dis_mahala =(v.transpose().eval())*S*v;
+    //if(dis_mahala(0,0) > 1e1){
+    //	cout << "entered maha dist"  << endl;
+    //  x_kk=x_k1k;
+    //  p_kk=p_k1k;
+    // }
+
+    //cout << "Dist maha" << dis_mahala << endl;
     //cout << "x_kk(5,0) " << x_kk(5,0) << endl;
 
     altitudeData.header.stamp       = ros::Time::now();
     altitudeData.pose.position.z    = x_kk(0,0);
     if(altitudeData.pose.position.z < 0) altitudeData.pose.position.z = 0;
-		//if(altitudeData.pose.position.z > 1.5) altitudeData.pose.position.z = 1.5;
+
     droneAltitudePub.publish(altitudeData);
+
+    objectHeightData.header.stamp = ros::Time::now();
+    objectHeightData.pose.position.z = x_kk(5,0);
+
+    droneObjectHeightPub.publish(objectHeightData);
 
     return true;
 }
@@ -293,7 +299,7 @@ void DroneAltitudeFiltering::OpenModel()
     //  Filling in the measurement covariance
     R(0,0) = 100000.0;               // altitude by lidar
     R(1,1) = 100000.0;							// accelerations by the imu
-    R(2,2) = 10*(M_PI/180);			// angular velocity by imu	
+    R(2,2) = 10*(M_PI/180);			// angular velocity by imu
     R(3,3) = 0.1;               // alitude by barometer
     R(4,4) = 1.0;							  // pitch angle
 
@@ -303,31 +309,31 @@ void DroneAltitudeFiltering::OpenModel()
 void DroneAltitudeFiltering::droneLidarCallbackSim( const geometry_msgs::PoseStamped &msg)
 {
 
-     measuredAltitude = msg.pose.position.z;
+    measuredAltitude = msg.pose.position.z;
 
-//     if (abs(measuredAltitude - lastMeasuredAltitude)>altitude_treshold)
-//     {
-//         object_height = object_height + (lastMeasuredAltitude - measuredAltitude);
-//         cout << "Object height" << object_height << endl;
+    //     if (abs(measuredAltitude - lastMeasuredAltitude)>altitude_treshold)
+    //     {
+    //         object_height = object_height + (lastMeasuredAltitude - measuredAltitude);
+    //         cout << "Object height" << object_height << endl;
 
-//         if(abs(object_height) < 0.05){
-//            object_below = false;
-//         }
-//         else {
-//            object_below = true;
-//         }
+    //         if(abs(object_height) < 0.05){
+    //            object_below = false;
+    //         }
+    //         else {
+    //            object_below = true;
+    //         }
 
-//     }
+    //     }
 
-//     if(object_below){
-//         filteredAltitude = measuredAltitude + object_height;
-//     }
-//     else {
-//         filteredAltitude = measuredAltitude;
-//     }
+    //     if(object_below){
+    //         filteredAltitude = measuredAltitude + object_height;
+    //     }
+    //     else {
+    //         filteredAltitude = measuredAltitude;
+    //     }
 
-//    altitudeData.pose.position.z = filteredAltitude;
-//    //PublishAltitudeData(altitudeData);
+    //    altitudeData.pose.position.z = filteredAltitude;
+    //    //PublishAltitudeData(altitudeData);
 
 
     lastMeasuredAltitude=msg.pose.position.z;
@@ -338,45 +344,45 @@ void DroneAltitudeFiltering::droneLidarCallbackReal(const sensor_msgs::Range &ms
 {
 
     measuredAltitude = msg.range;
-		
-		if(measuredAltitude > 1.5 && x_kk(5,0) < 0)
-			{	
-				counter = 0;
-				//cout << "Resetting the Altitude Filter " << endl;
-			}			 
-			
-			//if(x_kk(5,0) < 0 && x_kk(0,0) - measuredAltitude > 0.20)
-			//{	
-			//	counter = 0;
-			//	cout << "Resetting the Altitude Filter " << endl;
-			//}
 
-//    if (abs(measuredAltitude - lastMeasuredAltitude)>altitude_treshold)
-//    {
-//        object_height = object_height + (lastMeasuredAltitude - measuredAltitude);
-//        cout << "Object height" << object_height << endl;
+    if(measuredAltitude > 1.5 && x_kk(5,0) < 0)
+    {
+        counter = 0;
+        //cout << "Resetting the Altitude Filter " << endl;
+    }
 
-//        if(abs(object_height) < 0.05){
-//           object_below = false;
-//        }
-//        else {
-//           object_below = true;
-//        }
+    //if(x_kk(5,0) < 0 && x_kk(0,0) - measuredAltitude > 0.20)
+    //{
+    //	counter = 0;
+    //	cout << "Resetting the Altitude Filter " << endl;
+    //}
 
-//    }
+    //    if (abs(measuredAltitude - lastMeasuredAltitude)>altitude_treshold)
+    //    {
+    //        object_height = object_height + (lastMeasuredAltitude - measuredAltitude);
+    //        cout << "Object height" << object_height << endl;
 
-//    if(object_below){
-//        filteredAltitude = measuredAltitude + object_height;
-//    }
-//    else {
-//        filteredAltitude = measuredAltitude;
-//    }
+    //        if(abs(object_height) < 0.05){
+    //           object_below = false;
+    //        }
+    //        else {
+    //           object_below = true;
+    //        }
 
-//  altitudeData.pose.position.z = filteredAltitude;
-   //PublishAltitudeData(altitudeData);
+    //    }
+
+    //    if(object_below){
+    //        filteredAltitude = measuredAltitude + object_height;
+    //    }
+    //    else {
+    //        filteredAltitude = measuredAltitude;
+    //    }
+
+    //  altitudeData.pose.position.z = filteredAltitude;
+    //PublishAltitudeData(altitudeData);
 
 
-   lastMeasuredAltitude= msg.range;
+    lastMeasuredAltitude= msg.range;
 }
 
 void DroneAltitudeFiltering::droneImuCallback(const sensor_msgs::Imu &msg)
@@ -445,16 +451,16 @@ void DroneAltitudeFiltering::droneAtmPressureCallback(const sensor_msgs::FluidPr
     //       cout << "ndiv " << ndiv << endl;
     d = Lb;
 
-//    if(counter == 0){
-//        first_barometer_height = ndiv / d + hb;
-//        counter++;
-//    }
+    //    if(counter == 0){
+    //        first_barometer_height = ndiv / d + hb;
+    //        counter++;
+    //    }
 
-//    barometer_height = ndiv / d + hb;
+    //    barometer_height = ndiv / d + hb;
 
-//    barometer_height = barometer_height - first_barometer_height;
+    //    barometer_height = barometer_height - first_barometer_height;
 
-//    cout << "barometer_height" << barometer_height << endl;
+    //    cout << "barometer_height" << barometer_height << endl;
 
 
 }
@@ -468,32 +474,32 @@ void DroneAltitudeFiltering::droneTemperatureCallback(const sensor_msgs::Tempera
 
 void DroneAltitudeFiltering::droneMavrosAltitudeCallback(const mavros_msgs::Altitude &msg)
 {
-				
-		if(!(droneStatus.status == droneMsgsROS::droneStatus::FLYING))
+
+    if(!(droneStatus.status == droneMsgsROS::droneStatus::FLYING))
     {
         barometer_height = measuredAltitude;
     }
 
     else
     {
-				
-    if(counter == 0){
-        first_barometer_height        = msg.local;
-        first_measured_lidar_altitude = measuredAltitude;
-        counter++;
+
+        if(counter == 0){
+            first_barometer_height        = msg.local;
+            first_measured_lidar_altitude = measuredAltitude;
+            counter++;
+        }
+
+        //    cout << "first barometer height " << first_barometer_height << endl;
+        //    cout << "first lidar height"      << first_measured_lidar_altitude << endl;
+        //    cout << "barometer_height - first_barometer_height " << msg.local - first_barometer_height << endl;
+        barometer_height = first_measured_lidar_altitude + (msg.local - first_barometer_height);
     }
 
-//    cout << "first barometer height " << first_barometer_height << endl;
-//    cout << "first lidar height"      << first_measured_lidar_altitude << endl;
-//    cout << "barometer_height - first_barometer_height " << msg.local - first_barometer_height << endl;
-    barometer_height = first_measured_lidar_altitude + (msg.local - first_barometer_height);
-   }
-	
-		barometerData.header.stamp       	= ros::Time::now();
-		barometerData.pose.position.z 		= barometer_height;
-		droneBarometerHeightPub.publish(barometerData);			
+    barometerData.header.stamp       	= ros::Time::now();
+    barometerData.pose.position.z 		= barometer_height;
+    droneBarometerHeightPub.publish(barometerData);
 
-//    cout << "barometer_height" << barometer_height << endl;
+    //    cout << "barometer_height" << barometer_height << endl;
 
 }
 
