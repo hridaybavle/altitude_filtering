@@ -97,6 +97,8 @@ public:
     double P;
     double M;
     double nn, nd, ndiff,ndiv, d;
+		double timePrev, timeNow;
+		double deltaT;
 
 
 protected:

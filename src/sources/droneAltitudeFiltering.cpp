@@ -45,7 +45,7 @@ void DroneAltitudeFiltering::open(ros::NodeHandle & nIn)
     DroneModule::open(nIn);
 
     droneLidarSim            = n.subscribe("/px4flow/raw/px4Flow_pose_z", 1, &DroneAltitudeFiltering::droneLidarCallbackSim, this);
-    droneLidarReal           = n.subscribe("mavros/distance_sensor/hrlv_ez4_pub",1, &DroneAltitudeFiltering::droneLidarCallbackReal, this);
+    droneLidarReal           = n.subscribe("lightware_altitude",1, &DroneAltitudeFiltering::droneLidarCallbackReal, this);
     droneImuSub              = n.subscribe("mavros/imu/data",1,&DroneAltitudeFiltering::droneImuCallback, this);
     droneRotationAnglesSub   = n.subscribe("rotation_angles",1, &DroneAltitudeFiltering::droneRotationAnglesCallback, this);
     droneAtmPressureSub      = n.subscribe("mavros/imu/atm_pressure",1,&DroneAltitudeFiltering::droneAtmPressureCallback, this);
@@ -76,6 +76,7 @@ bool DroneAltitudeFiltering::init()
     altitude_treshold  = 0.25;
     object_height      = 0;
     counter            = 0;
+    timeNow 					 = 0;
     x_kk.setZero(8,1),p_kk.setZero(8,8), T.setZero(8,8),  F.setZero(8,8);
     H.setZero(5,8), R.setZero(5,5);
     x_k1k.setZero(8,1), p_k1k.setZero(8,8);
@@ -297,11 +298,11 @@ void DroneAltitudeFiltering::OpenModel()
 
 
     //  Filling in the measurement covariance
-    R(0,0) = 100000.0;               // altitude by lidar
-    R(1,1) = 100000.0;							// accelerations by the imu
+    R(0,0) = 10000.0;               // altitude by lidar
+    R(1,1) = 10000.0;							   // accelerations by the imu
     R(2,2) = 10*(M_PI/180);			// angular velocity by imu
     R(3,3) = 0.1;               // alitude by barometer
-    R(4,4) = 1.0;							  // pitch angle
+    R(4,4) = 0.1;							  // pitch angle
 
     return;
 }
@@ -387,7 +388,14 @@ void DroneAltitudeFiltering::droneLidarCallbackReal(const sensor_msgs::Range &ms
 
 void DroneAltitudeFiltering::droneImuCallback(const sensor_msgs::Imu &msg)
 {
+		
+	  timePrev = timeNow;
 
+    timeNow = (double) ros::Time::now().sec + ((double) ros::Time::now().nsec / (double) 1E9);
+				
+		deltaT   = timeNow - timePrev;
+		std::cout << "DeltaT" << deltaT << std::endl;
+							
     angular_velocity        = msg.angular_velocity.y;
     linear_acceleration_z   = msg.linear_acceleration.z;
 
