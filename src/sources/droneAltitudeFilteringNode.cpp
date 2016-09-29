@@ -23,19 +23,10 @@ int main(int argc, char **argv)
 
     try
     {
-         while(ros::ok())
-         {
+        
         //Read messages
-        ros::spinOnce();
-
-//        spinner.start();
-          if(MyDroneAltitudeFiltering.run())
-          {
-
-          }
-          MyDroneAltitudeFiltering.sleep();
-//        spinner.stop();
-         }
+        ros::spin();
+         
     }
     catch (std::exception &ex)
     {

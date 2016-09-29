@@ -82,11 +82,11 @@ public:
     void PublishAltitudeData(const geometry_msgs::PoseStamped &altitudemsg);
     void OpenModel();
 
-    float object_height, angular_velocity, linear_acceleration_z;
+    float object_height, angular_velocity, linear_acceleration_z, avg_linear_acceleration_z;
     float pitch_angle;
     float atm_pressure, temperature, barometer_height, first_barometer_height;
-		float first_measured_lidar_altitude;
-    float counter;
+    float first_measured_lidar_altitude;
+    float counter, count, stop_count, delta_count;
 
     double Pb;
     double hb;
@@ -97,8 +97,8 @@ public:
     double P;
     double M;
     double nn, nd, ndiff,ndiv, d;
-		double timePrev, timeNow;
-		double deltaT;
+    double timePrev, timeNow;
+    double deltaT;
 
 
 protected:

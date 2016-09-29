@@ -23,7 +23,7 @@ Eigen::MatrixXd x_k1k1(8,1), p_k1k1(8,8);
 Eigen::MatrixXd I(8,8);
 
 
-DroneAltitudeFiltering::DroneAltitudeFiltering() : DroneModule(droneModule::active, 100)
+DroneAltitudeFiltering::DroneAltitudeFiltering() : DroneModule(droneModule::active)
 {
     if(!init())
         std::cout<<"Error init"<<std::endl;
@@ -175,6 +175,20 @@ bool DroneAltitudeFiltering::run()
     //       x_kk=x_k1k1;
     //       P_kk=P_k1k1;
 
+		//Filling in the process jacobian
+    F(0,0) = 1.0;
+    F(0,1) = 1.0*deltaT;
+    F(0,2) = 0.5*pow(deltaT,2);
+    F(1,1) = 1.0;
+    F(1,2) = 1.0*deltaT;
+    F(2,2) = 1.0;
+    F(3,3) = 1.0;
+    F(3,4) = 1.0*deltaT;
+    F(4,4) = 1.0;
+    F(5,5) = 1.0;
+    F(6,6) = 1.0;
+    F(7,7) = 1.0;
+
     //Prediction stage
     x_k1k           = F*x_kk;
     p_k1k           = F*p_kk*(F.transpose().eval())+ T;
@@ -282,15 +296,16 @@ void DroneAltitudeFiltering::OpenModel()
     T(6,6) = 0;
     T(7,7) = 0;
 
+		
     //Filling in the process jacobian
     F(0,0) = 1.0;
-    F(0,1) = 0.01;
+    F(0,1) = 1.0*0.01;
     F(0,2) = 0.5*pow(0.01,2);
     F(1,1) = 1.0;
-    F(1,2) = 0.01;
+    F(1,2) = 1.0*0.01;
     F(2,2) = 1.0;
     F(3,3) = 1.0;
-    F(3,4) = 0.01;
+    F(3,4) = 1.0*0.01;
     F(4,4) = 1.0;
     F(5,5) = 1.0;
     F(6,6) = 1.0;
@@ -298,8 +313,8 @@ void DroneAltitudeFiltering::OpenModel()
 
 
     //  Filling in the measurement covariance
-    R(0,0) = 10000.0;               // altitude by lidar
-    R(1,1) = 10000.0;							   // accelerations by the imu
+    R(0,0) = 1.0;               // altitude by lidar
+    R(1,1) = 1.0;							   // accelerations by the imu
     R(2,2) = 10*(M_PI/180);			// angular velocity by imu
     R(3,3) = 0.1;               // alitude by barometer
     R(4,4) = 0.1;							  // pitch angle
@@ -390,12 +405,11 @@ void DroneAltitudeFiltering::droneImuCallback(const sensor_msgs::Imu &msg)
 {
 		
 	  timePrev = timeNow;
-
     timeNow = (double) ros::Time::now().sec + ((double) ros::Time::now().nsec / (double) 1E9);
-				
-		deltaT   = timeNow - timePrev;
-		std::cout << "DeltaT" << deltaT << std::endl;
-							
+
+    deltaT   = timeNow - timePrev;
+    //std::cout << "DeltaT" << deltaT << std::endl;
+
     angular_velocity        = msg.angular_velocity.y;
     linear_acceleration_z   = msg.linear_acceleration.z;
 
@@ -403,10 +417,27 @@ void DroneAltitudeFiltering::droneImuCallback(const sensor_msgs::Imu &msg)
     angular_velocity = angular_velocity * (M_PI/180);
     //    cout << "angular_velocity" << angular_velocity << endl;
 
-
-    //removing the bias from the accelerations
-    linear_acceleration_z   = linear_acceleration_z - 9.8052;
-    //    cout << "linear_acceleration_z" << linear_acceleration_z << endl;
+    if(count < 80){
+        avg_linear_acceleration_z += msg.linear_acceleration.z;
+        count++;
+    }
+	  else if(stop_count == 0){    
+		avg_linear_acceleration_z /= 80;
+    //cout << "avg_linear_acceleration_z" << avg_linear_acceleration_z << endl;
+		stop_count++;    
+		}
+		
+		//removing the bias from the accelerations
+    if(count < 80)
+        linear_acceleration_z   = linear_acceleration_z - 9.8;
+    else{
+        linear_acceleration_z = linear_acceleration_z - avg_linear_acceleration_z;   				
+				run();
+        }
+       // cout << "linear_acceleration_z" << linear_acceleration_z << endl;
+		
+			
+		
 
 
     return;
