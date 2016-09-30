@@ -175,7 +175,7 @@ bool DroneAltitudeFiltering::run()
     //       x_kk=x_k1k1;
     //       P_kk=P_k1k1;
 
-		//Filling in the process jacobian
+    //Filling in the process jacobian
     F(0,0) = 1.0;
     F(0,1) = 1.0*deltaT;
     F(0,2) = 0.5*pow(deltaT,2);
@@ -296,8 +296,8 @@ void DroneAltitudeFiltering::OpenModel()
     T(6,6) = 0;
     T(7,7) = 0;
 
-		
-    //Filling in the process jacobian
+
+    //Filling in the process jacobian (initializing with deltaT = 0.01)
     F(0,0) = 1.0;
     F(0,1) = 1.0*0.01;
     F(0,2) = 0.5*pow(0.01,2);
@@ -313,11 +313,11 @@ void DroneAltitudeFiltering::OpenModel()
 
 
     //  Filling in the measurement covariance
-    R(0,0) = 20.0;               // altitude by lidar
-    R(1,1) = 1.0;							   // accelerations by the imu
-    R(2,2) = 10*(M_PI/180);			// angular velocity by imu
-    R(3,3) = 0.1;               // alitude by barometer
-    R(4,4) = 0.1;							  // pitch angle
+    R(0,0) = 20.0;                           // altitude by lidar
+    R(1,1) = 1.0;							// accelerations by the imu
+    R(2,2) = 10*(M_PI/180);                // angular velocity by imu
+    R(3,3) = 0.1;                          // alitude by barometer
+    R(4,4) = 0.1;						   // pitch angle
 
     return;
 }
@@ -403,42 +403,37 @@ void DroneAltitudeFiltering::droneLidarCallbackReal(const sensor_msgs::Range &ms
 
 void DroneAltitudeFiltering::droneImuCallback(const sensor_msgs::Imu &msg)
 {
-		
-	  timePrev = timeNow;
+
+    timePrev = timeNow;
     timeNow = (double) ros::Time::now().sec + ((double) ros::Time::now().nsec / (double) 1E9);
 
     deltaT   = timeNow - timePrev;
-    //std::cout << "DeltaT" << deltaT << std::endl;
 
     angular_velocity        = msg.angular_velocity.y;
     linear_acceleration_z   = msg.linear_acceleration.z;
 
     //converting to radians
     angular_velocity = angular_velocity * (M_PI/180);
-    //    cout << "angular_velocity" << angular_velocity << endl;
+    //cout << "angular_velocity" << angular_velocity << endl;
 
     if(count < 80){
         avg_linear_acceleration_z += msg.linear_acceleration.z;
         count++;
     }
-	  else if(stop_count == 0){    
-		avg_linear_acceleration_z /= 80;
-    //cout << "avg_linear_acceleration_z" << avg_linear_acceleration_z << endl;
-		stop_count++;    
-		}
-		
-		//removing the bias from the accelerations
+    else if(stop_count == 0){
+        avg_linear_acceleration_z /= 80;
+        //cout << "avg_linear_acceleration_z" << avg_linear_acceleration_z << endl;
+        stop_count++;
+    }
+
+    //removing the bias from the accelerations
     if(count < 80)
         linear_acceleration_z   = linear_acceleration_z - 9.8;
     else{
-        linear_acceleration_z = linear_acceleration_z - avg_linear_acceleration_z;   				
-				run();
-        }
-       // cout << "linear_acceleration_z" << linear_acceleration_z << endl;
-		
-			
-		
-
+        linear_acceleration_z = linear_acceleration_z - avg_linear_acceleration_z;
+        run();
+    }
+    //cout << "linear_acceleration_z" << linear_acceleration_z << endl;
 
     return;
 }
@@ -449,7 +444,7 @@ void DroneAltitudeFiltering::droneRotationAnglesCallback(const geometry_msgs::Ve
     //converting to radians
     pitch_angle = pitch_angle * (M_PI/180);
 
-    //     cout << "pitch_angle" << pitch_angle << endl;
+    //cout << "pitch_angle" << pitch_angle << endl;
 
     return;
 }
@@ -459,7 +454,7 @@ void DroneAltitudeFiltering::droneAtmPressureCallback(const sensor_msgs::FluidPr
 
     atm_pressure = msg.fluid_pressure;
 
-    //    Pb = 101325;    % [Pa]
+    //       Pb = 101325;    % [Pa]
     //       hb = 0;         % [m]
     //       R_as = 8.31432; % [N*m/(mol*K)]
     //       G0 = 9.80665;   % [m/s.^2]
@@ -484,10 +479,7 @@ void DroneAltitudeFiltering::droneAtmPressureCallback(const sensor_msgs::FluidPr
 
     nn       = Tb * pow((Pb),((R_as * Lb)/(G0 * M)));
     nd       = pow((P),((R_as * Lb)/(G0 * M)));
-    //       cout << "nd " << nd << endl;
-    //       cout << "ndiff " << ndiff << endl;
     ndiv     = nn / nd - Tb;
-    //       cout << "ndiv " << ndiv << endl;
     d = Lb;
 
     //    if(counter == 0){
@@ -507,7 +499,7 @@ void DroneAltitudeFiltering::droneAtmPressureCallback(const sensor_msgs::FluidPr
 void DroneAltitudeFiltering::droneTemperatureCallback(const sensor_msgs::Temperature &msg)
 {
     temperature = msg.temperature;
-    //    cout << "temperature" << temperature << endl;
+    //cout << "temperature" << temperature << endl;
     return;
 }
 
@@ -528,9 +520,9 @@ void DroneAltitudeFiltering::droneMavrosAltitudeCallback(const mavros_msgs::Alti
             counter++;
         }
 
-        //    cout << "first barometer height " << first_barometer_height << endl;
-        //    cout << "first lidar height"      << first_measured_lidar_altitude << endl;
-        //    cout << "barometer_height - first_barometer_height " << msg.local - first_barometer_height << endl;
+        //cout << "first barometer height " << first_barometer_height << endl;
+        //cout << "first lidar height"      << first_measured_lidar_altitude << endl;
+        //cout << "barometer_height - first_barometer_height " << msg.local - first_barometer_height << endl;
         barometer_height = first_measured_lidar_altitude + (msg.local - first_barometer_height);
     }
 
@@ -538,7 +530,7 @@ void DroneAltitudeFiltering::droneMavrosAltitudeCallback(const mavros_msgs::Alti
     barometerData.pose.position.z 		= barometer_height;
     droneBarometerHeightPub.publish(barometerData);
 
-    //    cout << "barometer_height" << barometer_height << endl;
+    //cout << "barometer_height" << barometer_height << endl;
 
 }
 
