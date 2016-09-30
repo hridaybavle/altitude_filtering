@@ -120,6 +120,7 @@ protected:
 public:
     bool run();
     bool resetValues();
+		bool startVal();
 
 
 public:

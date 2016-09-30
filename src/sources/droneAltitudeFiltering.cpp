@@ -124,6 +124,17 @@ bool DroneAltitudeFiltering::resetValues()
 
 }
 
+bool DroneAltitudeFiltering::startVal()
+{
+    if(!DroneModule::startVal())
+        return false;
+
+    counter = 0;
+
+    return true;
+
+}
+
 bool DroneAltitudeFiltering::run()
 {
     if(!DroneModule::run())
