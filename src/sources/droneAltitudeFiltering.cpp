@@ -313,7 +313,7 @@ void DroneAltitudeFiltering::OpenModel()
 
 
     //  Filling in the measurement covariance
-    R(0,0) = 1.0;               // altitude by lidar
+    R(0,0) = 20.0;               // altitude by lidar
     R(1,1) = 1.0;							   // accelerations by the imu
     R(2,2) = 10*(M_PI/180);			// angular velocity by imu
     R(3,3) = 0.1;               // alitude by barometer
