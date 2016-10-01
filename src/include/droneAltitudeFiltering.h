@@ -20,6 +20,7 @@
 #include <sstream>
 #include <string>
 #include <cmath>
+#include <numeric>
 
 // ROS
 #include "ros/ros.h"
@@ -50,6 +51,8 @@
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Dense>
 
+#define BUFFER_SIZE 5
+#define ALTITUDE_THRESHOLD 0.10
 
 const double Pressure_sea_level = 101325;
 
@@ -66,6 +69,7 @@ public:
     void close();
     geometry_msgs::PoseStamped altitudeData;
     geometry_msgs::PoseStamped barometerData;
+    geometry_msgs::PoseStamped objectHeightEstData;
     geometry_msgs::PoseStamped objectHeightData;
 
     void droneLidarCallbackSim(const geometry_msgs::PoseStamped& msg);
@@ -82,11 +86,14 @@ public:
     void PublishAltitudeData(const geometry_msgs::PoseStamped &altitudemsg);
     void OpenModel();
 
-    float object_height, angular_velocity, linear_acceleration_z, avg_linear_acceleration_z;
+    float angular_velocity, linear_acceleration_z, avg_linear_acceleration_z;
     float pitch_angle;
     float atm_pressure, temperature, barometer_height, first_barometer_height;
     float first_measured_lidar_altitude;
     float counter, count, stop_count, delta_count;
+    std::vector<double> lidar_measurements;
+    double sum1,sum2;
+    double object_height;
 
     double Pb;
     double hb;
@@ -115,12 +122,13 @@ protected:
 
     ros::Publisher droneAltitudePub;
     ros::Publisher droneBarometerHeightPub;
+    ros::Publisher droneEstObjectHeightPub;
     ros::Publisher droneObjectHeightPub;
 
 public:
     bool run();
     bool resetValues();
-		bool startVal();
+    bool startVal();
 
 
 public:

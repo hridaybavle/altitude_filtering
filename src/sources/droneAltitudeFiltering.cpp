@@ -55,7 +55,8 @@ void DroneAltitudeFiltering::open(ros::NodeHandle & nIn)
 
     droneAltitudePub         = n.advertise<geometry_msgs::PoseStamped>("altitudeFiltered", 1, true);
     droneBarometerHeightPub  = n.advertise<geometry_msgs::PoseStamped>("altitudeBarometer",1, true);
-    droneObjectHeightPub     = n.advertise<geometry_msgs::PoseStamped>("objectHeight",1,true);
+    droneEstObjectHeightPub  = n.advertise<geometry_msgs::PoseStamped>("objectHeightEstimated",1,true);
+    droneObjectHeightPub     = n.advertise<geometry_msgs::PoseStamped>("objectHeight",1, true);
 
     init();
 
@@ -273,10 +274,10 @@ bool DroneAltitudeFiltering::run()
 
     droneAltitudePub.publish(altitudeData);
 
-    objectHeightData.header.stamp = ros::Time::now();
-    objectHeightData.pose.position.z = x_kk(5,0);
+    objectHeightEstData.header.stamp = ros::Time::now();
+    objectHeightEstData.pose.position.z = x_kk(5,0);
 
-    droneObjectHeightPub.publish(objectHeightData);
+    droneEstObjectHeightPub.publish(objectHeightEstData);
 
     return true;
 }
@@ -384,6 +385,38 @@ void DroneAltitudeFiltering::droneLidarCallbackReal(const sensor_msgs::Range &ms
     //	cout << "Resetting the Altitude Filter " << endl;
     //}
 
+    /// Store the values in a buffer
+    if(lidar_measurements.size() < BUFFER_SIZE){
+        lidar_measurements.push_back(measuredAltitude);
+    }
+    else{
+        double mean = 0;
+        // Shift the vector
+        for(int i = 0; i < lidar_measurements.size() - 1; i++){
+            lidar_measurements[i] = lidar_measurements[i + 1];
+
+            //adding the lidarmeasurements
+            mean += lidar_measurements[i+1];
+        }
+        lidar_measurements[lidar_measurements.size() - 1] = measuredAltitude;
+
+        //computing the average of the remaning samples
+        mean /= lidar_measurements.size();
+
+        if(abs(lidar_measurements[lidar_measurements.size() - 1] - mean) > ALTITUDE_THRESHOLD)
+            object_height -= (lidar_measurements[lidar_measurements.size() - 1] - mean);
+
+
+        // publish object_height
+        objectHeightData.header.stamp    = ros::Time::now();
+        objectHeightData.pose.position.z = object_height;
+        droneObjectHeightPub.publish(objectHeightData);
+    }
+
+
+
+
+
     //    if (abs(measuredAltitude - lastMeasuredAltitude)>altitude_treshold)
     //    {
     //        object_height = object_height + (lastMeasuredAltitude - measuredAltitude);
@@ -409,7 +442,7 @@ void DroneAltitudeFiltering::droneLidarCallbackReal(const sensor_msgs::Range &ms
     //PublishAltitudeData(altitudeData);
 
 
-    lastMeasuredAltitude= msg.range;
+    //    lastMeasuredAltitude= msg.range;
 }
 
 void DroneAltitudeFiltering::droneImuCallback(const sensor_msgs::Imu &msg)
