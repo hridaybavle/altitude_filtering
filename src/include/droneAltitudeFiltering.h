@@ -51,8 +51,11 @@
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Dense>
 
-#define BUFFER_SIZE 5
+#define BUFFER_SIZE 3
 #define ALTITUDE_THRESHOLD 0.10
+#define OBJECT_THRESHOLD 0.20
+#define ACCELERATIONS_COUNT 80
+
 
 const double Pressure_sea_level = 101325;
 
@@ -71,6 +74,7 @@ public:
     geometry_msgs::PoseStamped barometerData;
     geometry_msgs::PoseStamped objectHeightEstData;
     geometry_msgs::PoseStamped objectHeightData;
+		geometry_msgs::PoseStamped accelerationData;
 
     void droneLidarCallbackSim(const geometry_msgs::PoseStamped& msg);
     void droneLidarCallbackReal(const sensor_msgs::Range &msg);
@@ -90,20 +94,21 @@ public:
     float pitch_angle;
     float atm_pressure, temperature, barometer_height, first_barometer_height;
     float first_measured_lidar_altitude;
-    float counter, count, stop_count, delta_count;
+    float counter, count, stop_count, object_counter;
     std::vector<double> lidar_measurements;
-    double sum1,sum2;
+		int peak_counter;
+    double prev_mean;
     double object_height;
 
-    double Pb;
-    double hb;
-    double R_as;
-    double G0;
-    double Lb;
-    double Tb;
-    double P;
-    double M;
-    double nn, nd, ndiff,ndiv, d;
+//    double Pb;
+//    double hb;
+//    double R_as;
+//    double G0;
+//    double Lb;
+//    double Tb;
+//    double P;
+//    double M;
+//    double nn, nd, ndiff,ndiv, d;
     double timePrev, timeNow;
     double deltaT;
 
@@ -124,6 +129,7 @@ protected:
     ros::Publisher droneBarometerHeightPub;
     ros::Publisher droneEstObjectHeightPub;
     ros::Publisher droneObjectHeightPub;
+		ros::Publisher droneAccelerationsPub;
 
 public:
     bool run();
