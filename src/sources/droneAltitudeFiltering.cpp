@@ -78,7 +78,7 @@ bool DroneAltitudeFiltering::init()
     altitude_treshold  = 0.25;
     object_height      = 0;
     counter            = 0;
-		count 			 			 = 0;
+    count 			 			 = 0;
 		stop_count				 = 0;
 	  peak_counter 			 =-1;
 		object_counter 		 = 0;		
@@ -246,7 +246,7 @@ bool DroneAltitudeFiltering::run()
     v(2,0) = angular_velocity      - z_est_k(2,0);
     v(3,0) = barometer_height      - z_est_k(3,0);
     v(4,0) = pitch_angle           - z_est_k(4,0);
-		v(5,0) = object_height 				 - z_est_k(5,0);
+    v(5,0) = object_height 	   - z_est_k(5,0);
     //     cout << "diff Acc " << v(1,0) << endl;
 
     //Innovation (or residual) covariance
@@ -339,7 +339,7 @@ void DroneAltitudeFiltering::OpenModel()
     R(2,2) = 10*(M_PI/180);                // angular velocity by imu
     R(3,3) = 10.0;                          // alitude by barometer
     R(4,4) = 0.1;						   // pitch angle
-		R(5,5) = 5.0;              //object height
+    R(5,5) = 3.0;              //object height
 	
     return;
 }
