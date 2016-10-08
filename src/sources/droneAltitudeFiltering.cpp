@@ -500,7 +500,7 @@ void DroneAltitudeFiltering::droneImuCallback(const sensor_msgs::Imu &msg)
     }
     else if(stop_count == 0){
         avg_linear_acceleration_z /= (float) ACCELERATIONS_COUNT;
-        cout << "avg_linear_acceleration_z" << avg_linear_acceleration_z << endl;
+        //cout << "avg_linear_acceleration_z" << avg_linear_acceleration_z << endl;
 				linear_acceleration_z   = linear_acceleration_z - avg_linear_acceleration_z;
         stop_count++;
     }
@@ -510,7 +510,7 @@ void DroneAltitudeFiltering::droneImuCallback(const sensor_msgs::Imu &msg)
     }
       
 		run();
-    cout << "linear_acceleration_z" << linear_acceleration_z << endl;
+    //cout << "linear_acceleration_z" << linear_acceleration_z << endl;
 		// publish object_height
     accelerationData.header.stamp    = ros::Time::now();
     accelerationData.pose.position.z = linear_acceleration_z;
