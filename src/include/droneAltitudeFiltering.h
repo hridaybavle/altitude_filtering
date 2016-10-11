@@ -111,6 +111,7 @@ public:
 //    double nn, nd, ndiff,ndiv, d;
     double timePrev, timeNow;
     double deltaT;
+    std::vector<bool> measurement_activation;
 
 
 protected:
