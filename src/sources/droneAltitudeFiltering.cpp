@@ -68,6 +68,7 @@ void DroneAltitudeFiltering::open(ros::NodeHandle & nIn)
 
     OpenModel();
 
+
     return;
 }
 
@@ -335,11 +336,11 @@ void DroneAltitudeFiltering::OpenModel()
 
     //  Filling in the measurement covariance
     R(0,0) = 1.0;                           // altitude by lidar
-    R(1,1) = 1.0;							// accelerations by the imu
+    R(1,1) = 0.5;							// accelerations by the imu
     R(2,2) = 10*(M_PI/180);                // angular velocity by imu
     R(3,3) = 10.0;                          // alitude by barometer
     R(4,4) = 0.1;						   // pitch angle
-    R(5,5) = 3.0;              //object height
+    R(5,5) = 1.0;              //object height
 	
     return;
 }
