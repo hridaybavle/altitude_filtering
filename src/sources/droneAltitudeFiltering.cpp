@@ -53,11 +53,11 @@ void DroneAltitudeFiltering::open(ros::NodeHandle & nIn)
     droneMavrosAltitudeSub   = n.subscribe("mavros/altitude",1, &DroneAltitudeFiltering::droneMavrosAltitudeCallback, this);
     droneStatusSub           = n.subscribe("status",1, &DroneAltitudeFiltering::droneStatusCallback, this);
 
-    droneAltitudePub         = n.advertise<geometry_msgs::PoseStamped>("altitudeFiltered", 1, true);
-    droneBarometerHeightPub  = n.advertise<geometry_msgs::PoseStamped>("altitudeBarometer",1, true);
-    droneEstObjectHeightPub  = n.advertise<geometry_msgs::PoseStamped>("objectHeightEstimated",1,true);
-    droneObjectHeightPub     = n.advertise<geometry_msgs::PoseStamped>("objectHeight",1, true);
-    droneAccelerationsPub	 = n.advertise<geometry_msgs::PoseStamped>("accelerations",1,true);
+    droneAltitudePub         = n.advertise<geometry_msgs::PoseStamped>("altitudeFilteredPP", 1, true);
+    droneBarometerHeightPub  = n.advertise<geometry_msgs::PoseStamped>("altitudeBarometerPP",1, true);
+    droneEstObjectHeightPub  = n.advertise<geometry_msgs::PoseStamped>("objectHeightEstimatedPP",1,true);
+    droneObjectHeightPub     = n.advertise<geometry_msgs::PoseStamped>("objectHeightPP",1, true);
+    droneAccelerationsPub	 = n.advertise<geometry_msgs::PoseStamped>("accelerationsPP",1,true);
 
     init();
 
@@ -210,7 +210,9 @@ bool DroneAltitudeFiltering::run()
     F(3,3) = 1.0;
     F(3,4) = 1.0*deltaT;
     F(4,4) = 1.0;
-    F(5,5) = 1.0;
+    cout << "x_kk(5) " << x_kk(5,0);
+    cout << "abs(x_kk(5)) " << abs(x_kk(5,0)) << endl;
+    F(5,5) = (x_kk(5,0)/abs(x_kk(5,0)));
     F(6,6) = 1.0;
     F(7,7) = 1.0;
 
@@ -326,7 +328,7 @@ bool DroneAltitudeFiltering::run()
     // }
 
     //cout << "Dist maha" << dis_mahala << endl;
-    //cout << "x_kk(5,0) " << x_kk(5,0) << endl;
+    cout << "x_kk " << x_kk << endl;
 
     altitudeData.header.stamp       = ros::Time::now();
     altitudeData.pose.position.z    = x_kk(0,0);
@@ -354,7 +356,7 @@ void DroneAltitudeFiltering::OpenModel()
     x_kk(2,0) = 0;
     x_kk(3,0) = 0;
     x_kk(4,0) = 0;
-    x_kk(5,0) = 0;
+    x_kk(5,0) = 0.01;
     x_kk(6,0) = 0;
     x_kk(7,0) = 0;
 
@@ -368,17 +370,17 @@ void DroneAltitudeFiltering::OpenModel()
     T(0,0) = 0; // z
     T(1,1) = 0; // vz
     T(2,2) = 0.01; // az
-    T(3,3) = 0.01; // pitch
+    T(3,3) = 0.00; // pitch
     T(4,4) = 0.01; // wz
-    T(5,5) = 10; // z_map
-    T(6,6) = 1.00; // b_bar
-    T(7,7) = 0.005; // b_accz
+    T(5,5) = 100; // z_map
+    T(6,6) = 0.001; // b_bar
+    T(7,7) = 0.001; // b_accz
 
 
     //  Filling in the measurement covariance
-    R(0,0) = 1.0;                           // altitude by lidar
-    R(1,1) = 0.05;							// accelerations by the imu
-    R(2,2) = 10*(M_PI/180);                // angular velocity by imu
+    R(0,0) = 0.001;                           // altitude by lidar
+    R(1,1) = 0.01;							// accelerations by the imu
+    R(2,2) = 0.1;                        // angular velocity by imu
     R(3,3) = 10.0;                          // alitude by barometer
     R(4,4) = 0.1;						   // pitch angle
     R(5,5) = 1.0;                             //object height
@@ -424,7 +426,7 @@ void DroneAltitudeFiltering::droneLidarCallbackReal(const sensor_msgs::Range &ms
 {
     //setting the measurement flag to true;
     this->measurement_activation[0]=true;
-    this->measurement_activation[5]=true;
+    this->measurement_activation[5]=false;
 
     //calculating the deltaT
     timePrev = timeNow;
@@ -497,7 +499,7 @@ void DroneAltitudeFiltering::droneLidarCallbackReal(const sensor_msgs::Range &ms
         droneObjectHeightPub.publish(objectHeightData);
     }
 
-    run();
+    //run();
 
 
 
@@ -592,7 +594,7 @@ void DroneAltitudeFiltering::droneRotationAnglesCallback(const geometry_msgs::Ve
     //converting to radians
     pitch_angle = pitch_angle * (M_PI/180);
 
-    run();
+    //run();
     //cout << "pitch_angle" << pitch_angle << endl;
 
     return;
@@ -695,7 +697,7 @@ void DroneAltitudeFiltering::droneMavrosAltitudeCallback(const mavros_msgs::Alti
     barometerData.pose.position.z 		= barometer_height;
     droneBarometerHeightPub.publish(barometerData);
 
-    run();
+   // run();
     //cout << "barometer_height" << barometer_height << endl;
 
 }
