@@ -200,6 +200,12 @@ bool DroneAltitudeFiltering::run()
     //       x_kk=x_k1k1;
     //       P_kk=P_k1k1;
 
+    timePrev = timeNow;
+    timeNow = (double) ros::Time::now().sec + ((double) ros::Time::now().nsec / (double) 1E9);
+
+    deltaT   = timeNow - timePrev;
+    cout << "deltaT " << deltaT << endl;
+
     //Filling in the process jacobian
     F(0,0) = 1.0;
     F(0,1) = 1.0*deltaT;
@@ -372,8 +378,8 @@ void DroneAltitudeFiltering::OpenModel()
     T(2,2) = 0.01; // az
     T(3,3) = 0.00; // pitch
     T(4,4) = 0.01; // wz
-    T(5,5) = 100; // z_map
-    T(6,6) = 0.001; // b_bar
+    T(5,5) = 10; // z_map
+    T(6,6) = 0.01; // b_bar
     T(7,7) = 0.001; // b_accz
 
 
@@ -429,9 +435,9 @@ void DroneAltitudeFiltering::droneLidarCallbackReal(const sensor_msgs::Range &ms
     this->measurement_activation[5]=false;
 
     //calculating the deltaT
-    timePrev = timeNow;
-    timeNow = (double) ros::Time::now().sec + ((double) ros::Time::now().nsec / (double) 1E9);
-    deltaT   = timeNow - timePrev;
+//    timePrev = timeNow;
+//    timeNow = (double) ros::Time::now().sec + ((double) ros::Time::now().nsec / (double) 1E9);
+//    deltaT   = timeNow - timePrev;
 
 
     measuredAltitude = msg.range;
@@ -541,16 +547,16 @@ void DroneAltitudeFiltering::droneImuCallback(const sensor_msgs::Imu &msg)
 
 
 
-    timePrev = timeNow;
-    timeNow = (double) ros::Time::now().sec + ((double) ros::Time::now().nsec / (double) 1E9);
+//    timePrev = timeNow;
+//    timeNow = (double) ros::Time::now().sec + ((double) ros::Time::now().nsec / (double) 1E9);
 
-    deltaT   = timeNow - timePrev;
+//    deltaT   = timeNow - timePrev;
 
     angular_velocity        = msg.angular_velocity.y;
     linear_acceleration_z   = msg.linear_acceleration.z;
 
     //converting to radians
-    angular_velocity = angular_velocity * (M_PI/180);
+    angular_velocity = angular_velocity ;//* (M_PI/180);
     //cout << "angular_velocity" << angular_velocity << endl;
 
     if(count < ACCELERATIONS_COUNT){
@@ -585,9 +591,9 @@ void DroneAltitudeFiltering::droneRotationAnglesCallback(const geometry_msgs::Ve
     this->measurement_activation[4]=true;
 
     //calculating the deltaT
-    timePrev = timeNow;
-    timeNow = (double) ros::Time::now().sec + ((double) ros::Time::now().nsec / (double) 1E9);
-    deltaT   = timeNow - timePrev;
+//    timePrev = timeNow;
+//    timeNow = (double) ros::Time::now().sec + ((double) ros::Time::now().nsec / (double) 1E9);
+//    deltaT   = timeNow - timePrev;
 
 
     pitch_angle = msg.vector.y;
@@ -667,10 +673,10 @@ void DroneAltitudeFiltering::droneMavrosAltitudeCallback(const mavros_msgs::Alti
 
     this->measurement_activation[3]=true;
 
-    //calculating the deltaT
-    timePrev = timeNow;
-    timeNow = (double) ros::Time::now().sec + ((double) ros::Time::now().nsec / (double) 1E9);
-    deltaT   = timeNow - timePrev;
+//    //calculating the deltaT
+//    timePrev = timeNow;
+//    timeNow = (double) ros::Time::now().sec + ((double) ros::Time::now().nsec / (double) 1E9);
+//    deltaT   = timeNow - timePrev;
 
 
     if(!(droneStatus.status == droneMsgsROS::droneStatus::FLYING))
