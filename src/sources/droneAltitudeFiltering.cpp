@@ -17,7 +17,7 @@ Eigen::MatrixXd H(6,8), R(6,6);
 Eigen::MatrixXd x_k1k(8,1), p_k1k(8,8);
 Eigen::MatrixXd z_est_k(6,1);
 Eigen::MatrixXd v(6,1), S(6,6);
-Eigen::MatrixXd dis_mahala(6,1);
+//Eigen::MatrixXd dis_mahala(6,1);
 Eigen::MatrixXd K(8,6);
 Eigen::MatrixXd x_k1k1(8,1), p_k1k1(8,8);
 Eigen::MatrixXd I(8,8);
@@ -57,8 +57,9 @@ void DroneAltitudeFiltering::open(ros::NodeHandle & nIn)
     droneBarometerHeightPub  = n.advertise<geometry_msgs::PoseStamped>("altitudeBarometer",1, true);
     droneEstObjectHeightPub  = n.advertise<geometry_msgs::PoseStamped>("objectHeightEstimated",1,true);
     droneObjectHeightPub     = n.advertise<geometry_msgs::PoseStamped>("objectHeight",1, true);
-		droneAccelerationsPub		 = n.advertise<geometry_msgs::PoseStamped>("accelerations",1,true);
-	
+    droneAccelerationsPub	 = n.advertise<geometry_msgs::PoseStamped>("accelerations",1,true);
+    droneMahaDistancePub     = n.advertise<std_msgs::Float64>("mahalonobis_distance",1, true);
+
     init();
 
     droneModuleOpened=true;
@@ -80,11 +81,11 @@ bool DroneAltitudeFiltering::init()
     object_height      = 0;
     counter            = 0;
     count 			 			 = 0;
-		stop_count				 = 0;
-	  peak_counter 			 =-1;
-		object_counter 		 = 0;		
+    stop_count				 = 0;
+    peak_counter 			 =-1;
+    object_counter 		 = 0;
     timeNow 					 = 0;
-		x_kk.setZero(8,1),p_kk.setZero(8,8), T.setZero(8,8),  F.setZero(8,8);
+    x_kk.setZero(8,1),p_kk.setZero(8,8), T.setZero(8,8),  F.setZero(8,8);
     H.setZero(6,8), R.setZero(6,6);
     x_k1k.setZero(8,1), p_k1k.setZero(8,8);
     z_est_k.setZero(6,1);
@@ -92,6 +93,11 @@ bool DroneAltitudeFiltering::init()
     K.setZero(8,6);
     x_k1k1.setZero(8,1), p_k1k1.setZero(8,8);
     I.setZero(8,8);
+    this->measurement_activation.resize(6);
+    for(int i=0; i<6; i++)
+    {
+        this->measurement_activation[i]=false;
+    }
 
 
     measuredAltitude       = 0;
@@ -127,7 +133,7 @@ bool DroneAltitudeFiltering::resetValues()
         return false;
 
     counter = 0;
-		object_counter = 0;
+    object_counter = 0;
 
     return true;
 
@@ -139,7 +145,7 @@ bool DroneAltitudeFiltering::startVal()
         return false;
 
     counter = 0;
-		object_counter = 0;
+    object_counter = 0;
 
     return true;
 
@@ -196,6 +202,12 @@ bool DroneAltitudeFiltering::run()
     //       x_kk=x_k1k1;
     //       P_kk=P_k1k1;
 
+    timePrev = timeNow;
+    timeNow = (double) ros::Time::now().sec + ((double) ros::Time::now().nsec / (double) 1E9);
+
+    deltaT   = timeNow - timePrev;
+    cout << "deltaT " << deltaT << endl;
+
     //Filling in the process jacobian
     F(0,0) = 1.0;
     F(0,1) = 1.0*deltaT;
@@ -206,69 +218,119 @@ bool DroneAltitudeFiltering::run()
     F(3,3) = 1.0;
     F(3,4) = 1.0*deltaT;
     F(4,4) = 1.0;
-    F(5,5) = 1.0;
+    cout << "x_kk(5) " << x_kk(5,0);
+    cout << "abs(x_kk(5)) " << abs(x_kk(5,0)) << endl;
+    F(5,5) = (x_kk(5,0)/abs(x_kk(5,0)));
     F(6,6) = 1.0;
     F(7,7) = 1.0;
 
     //Prediction stage
     x_k1k           = F*x_kk;
-    p_k1k           = F*p_kk*(F.transpose().eval())+ T;
+    p_k1k           = F*p_kk*(F.transpose().eval())+ T*deltaT;
 
     //Update stage
-    z_est_k(0,0)=  (x_kk(0,0)- x_kk(5,0))/cos(x_kk(3,0));
-    z_est_k(1,0)=  x_kk(2,0) + x_kk(7,0);
-    z_est_k(2,0)=  x_kk(4,0);
-    z_est_k(3,0)=  x_kk(0,0) + x_kk(6,0);
-    z_est_k(4,0)=  x_kk(3,0);
-		z_est_k(5,0)=  x_kk(5,0);
-    //      cout << "z_est_k(0,0) " << z_est_k(0,0) << endl;
-    //      cout << "z_est_k(1,0) " << z_est_k(1,0) << endl;
-    //      cout << "z_est_k(2,0) " << z_est_k(2,0) << endl;
-    //      cout << "z_est_k(3,0) " << z_est_k(3,0) << endl;
-    //      cout << "z_est_k(4,0) " << z_est_k(4,0) << endl;
+    Eigen::VectorXd z_est_k;
+    Eigen::VectorXd v;
+    Eigen::MatrixXd H_enabled;
+    Eigen::MatrixXd R_enabled;
 
-    //Filling in the measurement model
-    H(0,0) = 1.0/cos(x_kk(3,0));
-    H(0,3) = (x_kk(0,0) - x_kk(5,0))*sin(x_kk(3,0))/cos(x_kk(3,0));
-    H(0,5) = -1.0/cos(x_kk(3.0));
-    H(1,2) = 1.0;
-    H(1,7) = 1.0;
-    H(2,4) = 1.0;
-    H(3,0) = 1.0;
-    H(3,6) = 1.0;
-    H(4,3) = 1.0;
-    H(5,5) = 1.0;
+    int num_enabled_meas=0;
+    for(int i=0; i<6;i++)
+    {
+        if(this->measurement_activation[i]==true)
+            num_enabled_meas++;
+    }
 
+    z_est_k.resize(num_enabled_meas);
+    z_est_k.setZero();
+    v.resize(num_enabled_meas);
+    v.setZero();
+    H_enabled.resize(num_enabled_meas, 8);
+    H_enabled.setZero();
+    R_enabled.resize(num_enabled_meas, num_enabled_meas);
+    R_enabled.setZero();
+    double dis_mahala;
 
+    for(int num_meas_i=0, num_enabled_meas_i=0; num_meas_i<6; num_meas_i++)
+    {
+        if(this->measurement_activation[num_meas_i]==true)
+        {
+            switch(num_meas_i)
+            {
+            case 0: // z_lidar
+                z_est_k(num_enabled_meas_i)=  (x_kk(0,0)- x_kk(5,0))/cos(x_kk(3,0));
+                H_enabled(num_enabled_meas_i,0) = 1.0/cos(x_kk(3,0));
+                H_enabled(num_enabled_meas_i,3) = (x_kk(0,0) - x_kk(5,0))*sin(x_kk(3,0))/cos(x_kk(3,0));
+                H_enabled(num_enabled_meas_i,5) = -1.0/cos(x_kk(3.0));
+                v(num_enabled_meas_i) = measuredAltitude      - z_est_k(num_enabled_meas_i,0);
+                break;
+            case 1:// imu_az
+                z_est_k(num_enabled_meas_i)=  x_kk(2,0) + x_kk(7,0);
+                H_enabled(num_enabled_meas_i,2) = 1.0;
+                H_enabled(num_enabled_meas_i,7) = 1.0;
+                v(num_enabled_meas_i) = linear_acceleration_z - z_est_k(num_enabled_meas_i,0);
+                break;
+            case 2://
+                z_est_k(num_enabled_meas_i)=  x_kk(4,0);
+                H_enabled(num_enabled_meas_i,4) = 1.0;
+                v(num_enabled_meas_i) = angular_velocity      - z_est_k(num_enabled_meas_i,0);
+                break;
+            case 3:
+                z_est_k(num_enabled_meas_i)=  x_kk(0,0) + x_kk(6,0);
+                H_enabled(num_enabled_meas_i,0) = 1.0;
+                H_enabled(num_enabled_meas_i,6) = 1.0;
+                v(num_enabled_meas_i) = barometer_height      - z_est_k(num_enabled_meas_i,0);
+                break;
+            case 4:
+                z_est_k(num_enabled_meas_i)=  x_kk(3,0);
+                H_enabled(num_enabled_meas_i,3) = 1.0;
+                v(num_enabled_meas_i) = pitch_angle           - z_est_k(num_enabled_meas_i,0);
+                break;
+            case 5:
+                z_est_k(num_enabled_meas_i)=  x_kk(5,0);
+                H_enabled(num_enabled_meas_i,5) = 1.0;
+                v(num_enabled_meas_i) = object_height 	   - z_est_k(num_enabled_meas_i,0);
+                break;
+            }
 
-    //Measurement residual
-    v(0,0) = measuredAltitude      - z_est_k(0,0);
-    v(1,0) = linear_acceleration_z - z_est_k(1,0);
-    v(2,0) = angular_velocity      - z_est_k(2,0);
-    v(3,0) = barometer_height      - z_est_k(3,0);
-    v(4,0) = pitch_angle           - z_est_k(4,0);
-    v(5,0) = object_height 	   - z_est_k(5,0);
-    //     cout << "diff Acc " << v(1,0) << endl;
+            R_enabled(num_enabled_meas_i, num_enabled_meas_i)=R(num_meas_i,num_meas_i);
+
+            num_enabled_meas_i++;
+
+        }
+
+    }
+
+    //    std::cout<<"R_enabled"<<std::endl;
+    //    std::cout<<R_enabled<<std::endl;
+
+    //    std::cout<<"H_enabled"<<std::endl;
+    //    std::cout<<H_enabled<<std::endl;
+
+    //    std::cout<<"v"<<std::endl;
+    //    std::cout<<v<<std::endl;
+
 
     //Innovation (or residual) covariance
-    S=H*p_k1k*(H.transpose().eval()) + R;
+    S=H_enabled*p_k1k*(H_enabled.transpose().eval()) + R_enabled;
 
 
     //Near-optimal Kalman gain
-    K=p_k1k*(H.transpose().eval())*(S.inverse());
+    K=p_k1k*(H_enabled.transpose().eval())*(S.inverse());
 
     //Updated state estimate
     x_k1k1=x_k1k+K*v;
 
     //Updated covariance estimate
-    p_k1k1=((I.setIdentity(8,8))-K*H)*p_k1k;
+    p_k1k1=((I.setIdentity(8,8))-K*H_enabled)*p_k1k;
 
     //Next iteration
     x_kk=x_k1k1;
     p_kk=p_k1k1;
 
     // if the altitude overshoots
-    //dis_mahala =(v.transpose().eval())*S*v;
+    dis_mahala =(v.transpose().eval())*S.inverse()*v;
+   // ROS_DEBUG ("dis_mahala %f ", dis_mahala);
     //if(dis_mahala(0,0) > 1e1){
     //	cout << "entered maha dist"  << endl;
     //  x_kk=x_k1k;
@@ -276,7 +338,7 @@ bool DroneAltitudeFiltering::run()
     // }
 
     //cout << "Dist maha" << dis_mahala << endl;
-    //cout << "x_kk(5,0) " << x_kk(5,0) << endl;
+    cout << "x_kk " << x_kk << endl;
 
     altitudeData.header.stamp       = ros::Time::now();
     altitudeData.pose.position.z    = x_kk(0,0);
@@ -289,6 +351,17 @@ bool DroneAltitudeFiltering::run()
 
     droneEstObjectHeightPub.publish(objectHeightEstData);
 
+    std_msgs::Float64 droneMahaDistance;
+    if(dis_mahala>15)
+        droneMahaDistance.data = -1;
+    else
+        droneMahaDistance.data = dis_mahala;
+    droneMahaDistancePub.publish(droneMahaDistance);
+
+    for(int i=0; i<6;i++)
+        measurement_activation[i]= false;
+
+
     return true;
 }
 
@@ -300,48 +373,34 @@ void DroneAltitudeFiltering::OpenModel()
     x_kk(2,0) = 0;
     x_kk(3,0) = 0;
     x_kk(4,0) = 0;
-    x_kk(5,0) = 0;
+    x_kk(5,0) = 0.01;
     x_kk(6,0) = 0;
     x_kk(7,0) = 0;
 
-    //Filling the predicted covariance estimate p_kk
+    //Filling the predicted covariance estimate p_kk(Initial state prediction)
+    p_kk(0,0) = 0;
+    p_kk(5,5) = 0;
     p_kk(6,6) = 10;
     p_kk(7,7) = 10;
 
-    //Filling in the process covariance Q
-    T(0,0) = 0;
-    T(1,1) = 0;
-    T(2,2) = 0.01;
-    T(3,3) = 0.01;
-    T(4,4) = 0.01;
-    T(5,5) = 10;
-    T(6,6) = 0;
-    T(7,7) = 0;
-
-
-    //Filling in the process jacobian (initializing with deltaT = 0.01)
-    F(0,0) = 1.0;
-    F(0,1) = 1.0*0.01;
-    F(0,2) = 0.5*pow(0.01,2);
-    F(1,1) = 1.0;
-    F(1,2) = 1.0*0.01;
-    F(2,2) = 1.0;
-    F(3,3) = 1.0;
-    F(3,4) = 1.0*0.01;
-    F(4,4) = 1.0;
-    F(5,5) = 1.0;
-    F(6,6) = 1.0;
-    F(7,7) = 1.0;
+    //Filling in the process covariance Q (process noise covariance)
+    T(0,0) = 0; // z
+    T(1,1) = 0; // vz
+    T(2,2) = 0.1; // az
+    T(3,3) = 0.0; // pitch
+    T(4,4) = 0.01; // wz
+    T(5,5) = 0.56; // z_map
+    T(6,6) = 0.05; // b_bar
+    T(7,7) = 0.01; // b_accz
 
 
     //  Filling in the measurement covariance
-    R(0,0) = 1.0;                           // altitude by lidar
-    R(1,1) = 0.5;							// accelerations by the imu
-    R(2,2) = 10*(M_PI/180);                // angular velocity by imu
-    R(3,3) = 10.0;                          // alitude by barometer
-    R(4,4) = 0.1;						   // pitch angle
-    R(5,5) = 1.0;              //object height
-	
+    R(0,0) = 0.004;                           // altitude by lidar
+    R(1,1) = 0.06;							// accelerations by the imu
+    R(2,2) = 0.0027;                        // angular velocity by imu
+    R(3,3) = 0.004;                          // alitude by barometer
+    R(4,4) = 0.35;						   // pitch angle
+    R(5,5) = 1.0;                             //object height
     return;
 }
 
@@ -350,37 +409,21 @@ void DroneAltitudeFiltering::droneLidarCallbackSim( const geometry_msgs::PoseSta
 
     measuredAltitude = msg.pose.position.z;
 
-    //     if (abs(measuredAltitude - lastMeasuredAltitude)>altitude_treshold)
-    //     {
-    //         object_height = object_height + (lastMeasuredAltitude - measuredAltitude);
-    //         cout << "Object height" << object_height << endl;
-
-    //         if(abs(object_height) < 0.05){
-    //            object_below = false;
-    //         }
-    //         else {
-    //            object_below = true;
-    //         }
-
-    //     }
-
-    //     if(object_below){
-    //         filteredAltitude = measuredAltitude + object_height;
-    //     }
-    //     else {
-    //         filteredAltitude = measuredAltitude;
-    //     }
-
-    //    altitudeData.pose.position.z = filteredAltitude;
-    //    //PublishAltitudeData(altitudeData);
-
-
     lastMeasuredAltitude=msg.pose.position.z;
 
 }
 
 void DroneAltitudeFiltering::droneLidarCallbackReal(const sensor_msgs::Range &msg)
 {
+    //setting the measurement flag to true;
+    this->measurement_activation[0]=true;
+    this->measurement_activation[5]=false;
+
+    //calculating the deltaT
+//    timePrev = timeNow;
+//    timeNow = (double) ros::Time::now().sec + ((double) ros::Time::now().nsec / (double) 1E9);
+//    deltaT   = timeNow - timePrev;
+
 
     measuredAltitude = msg.range;
 
@@ -413,33 +456,33 @@ void DroneAltitudeFiltering::droneLidarCallbackReal(const sensor_msgs::Range &ms
 
         //computing the average of the remaning samples
         mean /= (lidar_measurements.size() - 1);
-				
-				// If peak analyzer enabled, decrease peak counter
-				if(peak_counter > 0) peak_counter--;
 
-        if((abs(lidar_measurements[lidar_measurements.size() - 1] - mean) > (double) ALTITUDE_THRESHOLD) 
-																																										&& (peak_counter == -1)){
-						prev_mean = mean;
-						peak_counter = BUFFER_SIZE - 1;
-				}
-				
-				if (peak_counter == 0){
-					std::vector<double> lidar_sorted = lidar_measurements;
-					std::sort(lidar_sorted.begin(), lidar_sorted.end());
-					object_height -= (lidar_sorted[(int) ( ( BUFFER_SIZE - 1 ) / 2 )] - prev_mean);
-					peak_counter = -1;				
-				}
+        // If peak analyzer enabled, decrease peak counter
+        if(peak_counter > 0) peak_counter--;
 
-				// No object can be negative
-				if (object_height < 0)	object_height = 0;
-			
-				//TODO : Debug more errors
-				if (object_height < OBJECT_THRESHOLD)	object_height = 0;
-	
-				if(object_counter == 0){
-					 object_height = 0;
-					 object_counter++;
-				}							
+        if((abs(lidar_measurements[lidar_measurements.size() - 1] - mean) > (double) ALTITUDE_THRESHOLD)
+                && (peak_counter == -1)){
+            prev_mean = mean;
+            peak_counter = BUFFER_SIZE - 1;
+        }
+
+        if (peak_counter == 0){
+            std::vector<double> lidar_sorted = lidar_measurements;
+            std::sort(lidar_sorted.begin(), lidar_sorted.end());
+            object_height -= (lidar_sorted[(int) ( ( BUFFER_SIZE - 1 ) / 2 )] - prev_mean);
+            peak_counter = -1;
+        }
+
+        // No object can be negative
+        if (object_height < 0)	object_height = 0;
+
+        //TODO : Debug more errors
+        if (object_height < OBJECT_THRESHOLD)	object_height = 0;
+
+        if(object_counter == 0){
+            object_height = 0;
+            object_counter++;
+        }
 
         // publish object_height
         objectHeightData.header.stamp    = ros::Time::now();
@@ -447,7 +490,7 @@ void DroneAltitudeFiltering::droneLidarCallbackReal(const sensor_msgs::Range &ms
         droneObjectHeightPub.publish(objectHeightData);
     }
 
-
+    //run();
 
 
 
@@ -482,37 +525,44 @@ void DroneAltitudeFiltering::droneLidarCallbackReal(const sensor_msgs::Range &ms
 void DroneAltitudeFiltering::droneImuCallback(const sensor_msgs::Imu &msg)
 {
 
-    timePrev = timeNow;
-    timeNow = (double) ros::Time::now().sec + ((double) ros::Time::now().nsec / (double) 1E9);
+    //setting the measurement flag to true;
+    this->measurement_activation[1]=true;
+    //setting the measurement flag to true;
+    this->measurement_activation[2]=true;
 
-    deltaT   = timeNow - timePrev;
+
+
+//    timePrev = timeNow;
+//    timeNow = (double) ros::Time::now().sec + ((double) ros::Time::now().nsec / (double) 1E9);
+
+//    deltaT   = timeNow - timePrev;
 
     angular_velocity        = msg.angular_velocity.y;
     linear_acceleration_z   = msg.linear_acceleration.z;
 
     //converting to radians
-    angular_velocity = angular_velocity * (M_PI/180);
+    angular_velocity = angular_velocity ;//* (M_PI/180);
     //cout << "angular_velocity" << angular_velocity << endl;
 
     if(count < ACCELERATIONS_COUNT){
         avg_linear_acceleration_z += msg.linear_acceleration.z;
-				linear_acceleration_z   = linear_acceleration_z - 9.8;
+        linear_acceleration_z   = linear_acceleration_z - 9.8;
         count++;
     }
     else if(stop_count == 0){
         avg_linear_acceleration_z /= (float) ACCELERATIONS_COUNT;
         //cout << "avg_linear_acceleration_z" << avg_linear_acceleration_z << endl;
-				linear_acceleration_z   = linear_acceleration_z - avg_linear_acceleration_z;
+        linear_acceleration_z   = linear_acceleration_z - avg_linear_acceleration_z;
         stop_count++;
     }
-		else{
-				//removing the bias from the accelerations
+    else{
+        //removing the bias from the accelerations
         linear_acceleration_z = linear_acceleration_z - avg_linear_acceleration_z;
     }
-      
-		run();
+
+    run();
     //cout << "linear_acceleration_z" << linear_acceleration_z << endl;
-		// publish object_height
+    // publish object_height
     accelerationData.header.stamp    = ros::Time::now();
     accelerationData.pose.position.z = linear_acceleration_z;
     droneAccelerationsPub.publish(accelerationData);
@@ -522,10 +572,20 @@ void DroneAltitudeFiltering::droneImuCallback(const sensor_msgs::Imu &msg)
 
 void DroneAltitudeFiltering::droneRotationAnglesCallback(const geometry_msgs::Vector3Stamped &msg)
 {
+
+    this->measurement_activation[4]=true;
+
+    //calculating the deltaT
+//    timePrev = timeNow;
+//    timeNow = (double) ros::Time::now().sec + ((double) ros::Time::now().nsec / (double) 1E9);
+//    deltaT   = timeNow - timePrev;
+
+
     pitch_angle = msg.vector.y;
     //converting to radians
     pitch_angle = pitch_angle * (M_PI/180);
 
+    //run();
     //cout << "pitch_angle" << pitch_angle << endl;
 
     return;
@@ -557,31 +617,31 @@ void DroneAltitudeFiltering::droneAtmPressureCallback(const sensor_msgs::FluidPr
     //       BarometerHeight = BarometerHeight - BarometerHeight(1);
     //       BarometerHeight(end) = BarometerHeight(end-1);
 
-//    P = atm_pressure;
+    //    P = atm_pressure;
 
-//    nn       = Tb * pow((Pb),((R_as * Lb)/(G0 * M)));
-//    nd       = pow((P),((R_as * Lb)/(G0 * M)));
-//    ndiv     = nn / nd - Tb;
-//    d = Lb;
+    //    nn       = Tb * pow((Pb),((R_as * Lb)/(G0 * M)));
+    //    nd       = pow((P),((R_as * Lb)/(G0 * M)));
+    //    ndiv     = nn / nd - Tb;
+    //    d = Lb;
 
-//		if(!(droneStatus.status == droneMsgsROS::droneStatus::FLYING))
-//    {
-//        barometer_height = measuredAltitude;
-//    }
-//		else{
-//        if(counter == 0){
-//            first_barometer_height = (ndiv / d + hb);
-//						first_measured_lidar_altitude = measuredAltitude;
-//            counter++;
-//        }
+    //		if(!(droneStatus.status == droneMsgsROS::droneStatus::FLYING))
+    //    {
+    //        barometer_height = measuredAltitude;
+    //    }
+    //		else{
+    //        if(counter == 0){
+    //            first_barometer_height = (ndiv / d + hb);
+    //						first_measured_lidar_altitude = measuredAltitude;
+    //            counter++;
+    //        }
 
-//				barometer_height = first_measured_lidar_altitude + ((ndiv / d + hb) - first_barometer_height);
-//		}
+    //				barometer_height = first_measured_lidar_altitude + ((ndiv / d + hb) - first_barometer_height);
+    //		}
 
-//		barometerData.header.stamp       	= ros::Time::now();
-//   	barometerData.pose.position.z 		= barometer_height;
-//    droneBarometerHeightPub.publish(barometerData);
-		//cout << "barometer_height" << barometer_height << endl;
+    //		barometerData.header.stamp       	= ros::Time::now();
+    //   	barometerData.pose.position.z 		= barometer_height;
+    //    droneBarometerHeightPub.publish(barometerData);
+    //cout << "barometer_height" << barometer_height << endl;
 
 
 }
@@ -595,6 +655,14 @@ void DroneAltitudeFiltering::droneTemperatureCallback(const sensor_msgs::Tempera
 
 void DroneAltitudeFiltering::droneMavrosAltitudeCallback(const mavros_msgs::Altitude &msg)
 {
+
+    this->measurement_activation[3]=true;
+
+//    //calculating the deltaT
+//    timePrev = timeNow;
+//    timeNow = (double) ros::Time::now().sec + ((double) ros::Time::now().nsec / (double) 1E9);
+//    deltaT   = timeNow - timePrev;
+
 
     if(!(droneStatus.status == droneMsgsROS::droneStatus::FLYING))
     {
@@ -620,6 +688,7 @@ void DroneAltitudeFiltering::droneMavrosAltitudeCallback(const mavros_msgs::Alti
     barometerData.pose.position.z 		= barometer_height;
     droneBarometerHeightPub.publish(barometerData);
 
+   // run();
     //cout << "barometer_height" << barometer_height << endl;
 
 }
