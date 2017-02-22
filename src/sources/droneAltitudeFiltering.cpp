@@ -17,7 +17,7 @@ Eigen::MatrixXd H(6,8), R(6,6);
 Eigen::MatrixXd x_k1k(8,1), p_k1k(8,8);
 Eigen::MatrixXd z_est_k(6,1);
 Eigen::MatrixXd v(6,1), S(6,6);
-Eigen::MatrixXd dis_mahala(6,1);
+//Eigen::MatrixXd dis_mahala(6,1);
 Eigen::MatrixXd K(8,6);
 Eigen::MatrixXd x_k1k1(8,1), p_k1k1(8,8);
 Eigen::MatrixXd I(8,8);
@@ -53,11 +53,12 @@ void DroneAltitudeFiltering::open(ros::NodeHandle & nIn)
     droneMavrosAltitudeSub   = n.subscribe("mavros/altitude",1, &DroneAltitudeFiltering::droneMavrosAltitudeCallback, this);
     droneStatusSub           = n.subscribe("status",1, &DroneAltitudeFiltering::droneStatusCallback, this);
 
-    droneAltitudePub         = n.advertise<geometry_msgs::PoseStamped>("altitudeFilteredPP", 1, true);
-    droneBarometerHeightPub  = n.advertise<geometry_msgs::PoseStamped>("altitudeBarometerPP",1, true);
-    droneEstObjectHeightPub  = n.advertise<geometry_msgs::PoseStamped>("objectHeightEstimatedPP",1,true);
-    droneObjectHeightPub     = n.advertise<geometry_msgs::PoseStamped>("objectHeightPP",1, true);
-    droneAccelerationsPub	 = n.advertise<geometry_msgs::PoseStamped>("accelerationsPP",1,true);
+    droneAltitudePub         = n.advertise<geometry_msgs::PoseStamped>("altitudeFiltered", 1, true);
+    droneBarometerHeightPub  = n.advertise<geometry_msgs::PoseStamped>("altitudeBarometer",1, true);
+    droneEstObjectHeightPub  = n.advertise<geometry_msgs::PoseStamped>("objectHeightEstimated",1,true);
+    droneObjectHeightPub     = n.advertise<geometry_msgs::PoseStamped>("objectHeight",1, true);
+    droneAccelerationsPub	 = n.advertise<geometry_msgs::PoseStamped>("accelerations",1,true);
+    droneMahaDistancePub     = n.advertise<std_msgs::Float64>("mahalonobis_distance",1, true);
 
     init();
 
@@ -224,7 +225,7 @@ bool DroneAltitudeFiltering::run()
 
     //Prediction stage
     x_k1k           = F*x_kk;
-    p_k1k           = F*p_kk*(F.transpose().eval())+ T;
+    p_k1k           = F*p_kk*(F.transpose().eval())+ T*deltaT;
 
     //Update stage
     Eigen::VectorXd z_est_k;
@@ -247,6 +248,7 @@ bool DroneAltitudeFiltering::run()
     H_enabled.setZero();
     R_enabled.resize(num_enabled_meas, num_enabled_meas);
     R_enabled.setZero();
+    double dis_mahala;
 
     for(int num_meas_i=0, num_enabled_meas_i=0; num_meas_i<6; num_meas_i++)
     {
@@ -326,7 +328,8 @@ bool DroneAltitudeFiltering::run()
     p_kk=p_k1k1;
 
     // if the altitude overshoots
-    //dis_mahala =(v.transpose().eval())*S*v;
+    dis_mahala =(v.transpose().eval())*S.inverse()*v;
+   // ROS_DEBUG ("dis_mahala %f ", dis_mahala);
     //if(dis_mahala(0,0) > 1e1){
     //	cout << "entered maha dist"  << endl;
     //  x_kk=x_k1k;
@@ -346,6 +349,13 @@ bool DroneAltitudeFiltering::run()
     objectHeightEstData.pose.position.z = x_kk(5,0);
 
     droneEstObjectHeightPub.publish(objectHeightEstData);
+
+    std_msgs::Float64 droneMahaDistance;
+    if(dis_mahala>15)
+        droneMahaDistance.data = -1;
+    else
+        droneMahaDistance.data = dis_mahala;
+    droneMahaDistancePub.publish(droneMahaDistance);
 
     for(int i=0; i<6;i++)
         measurement_activation[i]= false;
@@ -372,23 +382,23 @@ void DroneAltitudeFiltering::OpenModel()
     p_kk(6,6) = 10;
     p_kk(7,7) = 10;
 
-    //Filling in the process covariance Q (intial state prediction covariance)
+    //Filling in the process covariance Q (process noise covariance)
     T(0,0) = 0; // z
     T(1,1) = 0; // vz
-    T(2,2) = 0.01; // az
-    T(3,3) = 0.00; // pitch
+    T(2,2) = 0.1; // az
+    T(3,3) = 0.0; // pitch
     T(4,4) = 0.01; // wz
-    T(5,5) = 10; // z_map
-    T(6,6) = 0.01; // b_bar
-    T(7,7) = 0.001; // b_accz
+    T(5,5) = 0.56; // z_map
+    T(6,6) = 0.05; // b_bar
+    T(7,7) = 0.01; // b_accz
 
 
     //  Filling in the measurement covariance
-    R(0,0) = 0.001;                           // altitude by lidar
-    R(1,1) = 0.01;							// accelerations by the imu
-    R(2,2) = 0.1;                        // angular velocity by imu
-    R(3,3) = 10.0;                          // alitude by barometer
-    R(4,4) = 0.1;						   // pitch angle
+    R(0,0) = 0.004;                           // altitude by lidar
+    R(1,1) = 0.06;							// accelerations by the imu
+    R(2,2) = 0.0027;                        // angular velocity by imu
+    R(3,3) = 0.004;                          // alitude by barometer
+    R(4,4) = 0.35;						   // pitch angle
     R(5,5) = 1.0;                             //object height
 
     return;
@@ -398,31 +408,6 @@ void DroneAltitudeFiltering::droneLidarCallbackSim( const geometry_msgs::PoseSta
 {
 
     measuredAltitude = msg.pose.position.z;
-
-    //     if (abs(measuredAltitude - lastMeasuredAltitude)>altitude_treshold)
-    //     {
-    //         object_height = object_height + (lastMeasuredAltitude - measuredAltitude);
-    //         cout << "Object height" << object_height << endl;
-
-    //         if(abs(object_height) < 0.05){
-    //            object_below = false;
-    //         }
-    //         else {
-    //            object_below = true;
-    //         }
-
-    //     }
-
-    //     if(object_below){
-    //         filteredAltitude = measuredAltitude + object_height;
-    //     }
-    //     else {
-    //         filteredAltitude = measuredAltitude;
-    //     }
-
-    //    altitudeData.pose.position.z = filteredAltitude;
-    //    //PublishAltitudeData(altitudeData);
-
 
     lastMeasuredAltitude=msg.pose.position.z;
 

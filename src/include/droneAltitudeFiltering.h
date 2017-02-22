@@ -32,6 +32,7 @@
 #include "geometry_msgs/PoseStamped.h"
 #include "sensor_msgs/Imu.h"
 #include "geometry_msgs/Vector3Stamped.h"
+#include "std_msgs/Float64.h"
 
 //mavros
 #include "mavros_msgs/Altitude.h"
@@ -74,7 +75,7 @@ public:
     geometry_msgs::PoseStamped barometerData;
     geometry_msgs::PoseStamped objectHeightEstData;
     geometry_msgs::PoseStamped objectHeightData;
-		geometry_msgs::PoseStamped accelerationData;
+    geometry_msgs::PoseStamped accelerationData;
 
     void droneLidarCallbackSim(const geometry_msgs::PoseStamped& msg);
     void droneLidarCallbackReal(const sensor_msgs::Range &msg);
@@ -96,19 +97,19 @@ public:
     float first_measured_lidar_altitude;
     float counter, count, stop_count, object_counter;
     std::vector<double> lidar_measurements;
-		int peak_counter;
+    int peak_counter;
     double prev_mean;
     double object_height;
 
-//    double Pb;
-//    double hb;
-//    double R_as;
-//    double G0;
-//    double Lb;
-//    double Tb;
-//    double P;
-//    double M;
-//    double nn, nd, ndiff,ndiv, d;
+    //    double Pb;
+    //    double hb;
+    //    double R_as;
+    //    double G0;
+    //    double Lb;
+    //    double Tb;
+    //    double P;
+    //    double M;
+    //    double nn, nd, ndiff,ndiv, d;
     double timePrev, timeNow;
     double deltaT;
     std::vector<bool> measurement_activation;
@@ -130,7 +131,8 @@ protected:
     ros::Publisher droneBarometerHeightPub;
     ros::Publisher droneEstObjectHeightPub;
     ros::Publisher droneObjectHeightPub;
-		ros::Publisher droneAccelerationsPub;
+    ros::Publisher droneAccelerationsPub;
+    ros::Publisher droneMahaDistancePub;
 
 public:
     bool run();
