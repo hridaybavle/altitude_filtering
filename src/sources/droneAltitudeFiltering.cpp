@@ -220,6 +220,9 @@ bool DroneAltitudeFiltering::run()
     F(4,4) = 1.0;
     cout << "x_kk(5) " << x_kk(5,0);
     cout << "abs(x_kk(5)) " << abs(x_kk(5,0)) << endl;
+    if(x_kk(5,0) <= 0.10)
+    F(5,5) = 0;
+    else
     F(5,5) = (x_kk(5,0)/abs(x_kk(5,0)));
     F(6,6) = 1.0;
     F(7,7) = 1.0;
@@ -389,7 +392,7 @@ void DroneAltitudeFiltering::OpenModel()
     T(2,2) = 0.1; // az
     T(3,3) = 0.0; // pitch
     T(4,4) = 0.01; // wz
-    T(5,5) = 0.56; // z_map
+    T(5,5) = 10.00; // z_map
     T(6,6) = 0.05; // b_bar
     T(7,7) = 0.01; // b_accz
 
