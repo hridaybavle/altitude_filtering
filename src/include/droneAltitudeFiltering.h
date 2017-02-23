@@ -52,6 +52,8 @@
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Dense>
 
+#define DIM_STATE   10
+#define MEASUREMENT_STATE 7
 #define BUFFER_SIZE 3
 #define ALTITUDE_THRESHOLD 0.10
 #define OBJECT_THRESHOLD 0.20
@@ -91,8 +93,8 @@ public:
     void PublishAltitudeData(const geometry_msgs::PoseStamped &altitudemsg);
     void OpenModel();
 
-    float angular_velocity, linear_acceleration_z, avg_linear_acceleration_z;
-    float pitch_angle;
+    float angular_velocity, angular_velocity_x,  linear_acceleration_z, avg_linear_acceleration_z;
+    float pitch_angle, roll_angle;
     float atm_pressure, temperature, barometer_height, first_barometer_height;
     float first_measured_lidar_altitude;
     float counter, count, stop_count, object_counter;

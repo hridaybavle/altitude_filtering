@@ -12,15 +12,15 @@
 // using namespaces only in cpp files!!
 using namespace std;
 
-Eigen::MatrixXd x_kk(8,1),p_kk(8,8), T(8,8),  F(8,8);
-Eigen::MatrixXd H(6,8), R(6,6);
-Eigen::MatrixXd x_k1k(8,1), p_k1k(8,8);
-Eigen::MatrixXd z_est_k(6,1);
-Eigen::MatrixXd v(6,1), S(6,6);
+Eigen::MatrixXd x_kk(DIM_STATE,1),p_kk(DIM_STATE,DIM_STATE), T(DIM_STATE,DIM_STATE),  F(DIM_STATE,DIM_STATE);
+Eigen::MatrixXd H(MEASUREMENT_STATE,DIM_STATE), R(MEASUREMENT_STATE,MEASUREMENT_STATE);
+Eigen::MatrixXd x_k1k(DIM_STATE,1), p_k1k(DIM_STATE,DIM_STATE);
+Eigen::MatrixXd z_est_k(MEASUREMENT_STATE,1);
+Eigen::MatrixXd v(MEASUREMENT_STATE,1), S(MEASUREMENT_STATE,MEASUREMENT_STATE);
 //Eigen::MatrixXd dis_mahala(6,1);
-Eigen::MatrixXd K(8,6);
-Eigen::MatrixXd x_k1k1(8,1), p_k1k1(8,8);
-Eigen::MatrixXd I(8,8);
+Eigen::MatrixXd K(DIM_STATE,MEASUREMENT_STATE);
+Eigen::MatrixXd x_k1k1(DIM_STATE,1), p_k1k1(DIM_STATE,DIM_STATE);
+Eigen::MatrixXd I(DIM_STATE,DIM_STATE);
 
 
 DroneAltitudeFiltering::DroneAltitudeFiltering() : DroneModule(droneModule::active)
@@ -85,16 +85,16 @@ bool DroneAltitudeFiltering::init()
     peak_counter 			 =-1;
     object_counter 		 = 0;
     timeNow 					 = 0;
-    x_kk.setZero(8,1),p_kk.setZero(8,8), T.setZero(8,8),  F.setZero(8,8);
-    H.setZero(6,8), R.setZero(6,6);
-    x_k1k.setZero(8,1), p_k1k.setZero(8,8);
-    z_est_k.setZero(6,1);
-    v.setZero(6,1), S.setZero(6,6);
-    K.setZero(8,6);
-    x_k1k1.setZero(8,1), p_k1k1.setZero(8,8);
-    I.setZero(8,8);
-    this->measurement_activation.resize(6);
-    for(int i=0; i<6; i++)
+    x_kk.setZero(DIM_STATE,1),p_kk.setZero(DIM_STATE,DIM_STATE), T.setZero(DIM_STATE,DIM_STATE),  F.setZero(DIM_STATE,DIM_STATE);
+    H.setZero(MEASUREMENT_STATE,DIM_STATE), R.setZero(MEASUREMENT_STATE,MEASUREMENT_STATE);
+    x_k1k.setZero(DIM_STATE,1), p_k1k.setZero(DIM_STATE,DIM_STATE);
+    z_est_k.setZero(MEASUREMENT_STATE,1);
+    v.setZero(MEASUREMENT_STATE,1), S.setZero(MEASUREMENT_STATE,MEASUREMENT_STATE);
+    K.setZero(DIM_STATE,MEASUREMENT_STATE);
+    x_k1k1.setZero(DIM_STATE,1), p_k1k1.setZero(DIM_STATE,DIM_STATE);
+    I.setZero(DIM_STATE,DIM_STATE);
+    this->measurement_activation.resize(MEASUREMENT_STATE);
+    for(int i=0; i<MEASUREMENT_STATE; i++)
     {
         this->measurement_activation[i]=false;
     }
@@ -226,6 +226,9 @@ bool DroneAltitudeFiltering::run()
     F(5,5) = (x_kk(5,0)/abs(x_kk(5,0)));
     F(6,6) = 1.0;
     F(7,7) = 1.0;
+    F(8,8) = 1.0;
+    F(8,9) = 1.0*deltaT;
+    F(9,9) = 1.0;
 
     //Prediction stage
     x_k1k           = F*x_kk;
@@ -238,7 +241,7 @@ bool DroneAltitudeFiltering::run()
     Eigen::MatrixXd R_enabled;
 
     int num_enabled_meas=0;
-    for(int i=0; i<6;i++)
+    for(int i=0; i<MEASUREMENT_STATE;i++)
     {
         if(this->measurement_activation[i]==true)
             num_enabled_meas++;
@@ -248,23 +251,24 @@ bool DroneAltitudeFiltering::run()
     z_est_k.setZero();
     v.resize(num_enabled_meas);
     v.setZero();
-    H_enabled.resize(num_enabled_meas, 8);
+    H_enabled.resize(num_enabled_meas, DIM_STATE);
     H_enabled.setZero();
     R_enabled.resize(num_enabled_meas, num_enabled_meas);
     R_enabled.setZero();
     double dis_mahala;
 
-    for(int num_meas_i=0, num_enabled_meas_i=0; num_meas_i<6; num_meas_i++)
+    for(int num_meas_i=0, num_enabled_meas_i=0; num_meas_i<MEASUREMENT_STATE; num_meas_i++)
     {
         if(this->measurement_activation[num_meas_i]==true)
         {
             switch(num_meas_i)
             {
             case 0: // z_lidar
-                z_est_k(num_enabled_meas_i)=  (x_kk(0,0)- x_kk(5,0))/cos(x_kk(3,0));
+                z_est_k(num_enabled_meas_i)=  (x_kk(0,0)- x_kk(5,0))/cos(x_kk(3,0))*cos(x_kk(8,0));
                 H_enabled(num_enabled_meas_i,0) = 1.0/cos(x_kk(3,0));
                 H_enabled(num_enabled_meas_i,3) = (x_kk(0,0) - x_kk(5,0))*sin(x_kk(3,0))/cos(x_kk(3,0));
-                H_enabled(num_enabled_meas_i,5) = -1.0/cos(x_kk(3.0));
+                H_enabled(num_enabled_meas_i,5) = -1.0/cos(x_kk(3,0))*cos(x_kk(3,0));
+                H_enabled(num_enabled_meas_i,8) = (x_kk(0,0) - x_kk(5,0))*sin(x_kk(8,0))/cos(x_kk(8,0));
                 v(num_enabled_meas_i) = measuredAltitude      - z_est_k(num_enabled_meas_i,0);
                 break;
             case 1:// imu_az
@@ -273,27 +277,31 @@ bool DroneAltitudeFiltering::run()
                 H_enabled(num_enabled_meas_i,7) = 1.0;
                 v(num_enabled_meas_i) = linear_acceleration_z - z_est_k(num_enabled_meas_i,0);
                 break;
-            case 2://
+            case 2://angular veloctiy y
                 z_est_k(num_enabled_meas_i)=  x_kk(4,0);
                 H_enabled(num_enabled_meas_i,4) = 1.0;
                 v(num_enabled_meas_i) = angular_velocity      - z_est_k(num_enabled_meas_i,0);
                 break;
-            case 3:
+            case 3: // barometer
                 z_est_k(num_enabled_meas_i)=  x_kk(0,0) + x_kk(6,0);
                 H_enabled(num_enabled_meas_i,0) = 1.0;
                 H_enabled(num_enabled_meas_i,6) = 1.0;
                 v(num_enabled_meas_i) = barometer_height      - z_est_k(num_enabled_meas_i,0);
                 break;
-            case 4:
+            case 4: // pitch angle
                 z_est_k(num_enabled_meas_i)=  x_kk(3,0);
                 H_enabled(num_enabled_meas_i,3) = 1.0;
                 v(num_enabled_meas_i) = pitch_angle           - z_est_k(num_enabled_meas_i,0);
                 break;
-            case 5:
-                z_est_k(num_enabled_meas_i)=  x_kk(5,0);
-                H_enabled(num_enabled_meas_i,5) = 1.0;
-                v(num_enabled_meas_i) = object_height 	   - z_est_k(num_enabled_meas_i,0);
+            case 5: // roll angle
+                z_est_k(num_enabled_meas_i)=  x_kk(8,0);
+                H_enabled(num_enabled_meas_i,8) = 1.0;
+                v(num_enabled_meas_i) = roll_angle            - z_est_k(num_enabled_meas_i,0);
                 break;
+            case 6: // angular velocity
+                z_est_k(num_enabled_meas_i) = x_kk(9,0);
+                H_enabled(num_enabled_meas_i, 9) = 1.0;
+                v(num_enabled_meas_i)  = angular_velocity_x   - z_est_k(num_enabled_meas_i,0);
             }
 
             R_enabled(num_enabled_meas_i, num_enabled_meas_i)=R(num_meas_i,num_meas_i);
@@ -325,7 +333,7 @@ bool DroneAltitudeFiltering::run()
     x_k1k1=x_k1k+K*v;
 
     //Updated covariance estimate
-    p_k1k1=((I.setIdentity(8,8))-K*H_enabled)*p_k1k;
+    p_k1k1=((I.setIdentity(DIM_STATE,DIM_STATE))-K*H_enabled)*p_k1k;
 
     //Next iteration
     x_kk=x_k1k1;
@@ -361,7 +369,7 @@ bool DroneAltitudeFiltering::run()
         droneMahaDistance.data = dis_mahala;
     droneMahaDistancePub.publish(droneMahaDistance);
 
-    for(int i=0; i<6;i++)
+    for(int i=0; i<MEASUREMENT_STATE;i++)
         measurement_activation[i]= false;
 
 
@@ -371,14 +379,16 @@ bool DroneAltitudeFiltering::run()
 void DroneAltitudeFiltering::OpenModel()
 {
     //Filling the process model x_kk
-    x_kk(0,0) = 0;
-    x_kk(1,0) = 0;
-    x_kk(2,0) = 0;
-    x_kk(3,0) = 0;
-    x_kk(4,0) = 0;
-    x_kk(5,0) = 0.01;
-    x_kk(6,0) = 0;
-    x_kk(7,0) = 0;
+    x_kk(0,0) = 0;    //altitude
+    x_kk(1,0) = 0;    //velocity
+    x_kk(2,0) = 0;    //acclerations
+    x_kk(3,0) = 0;    //pitch angle
+    x_kk(4,0) = 0;    //angular velocity about y axis
+    x_kk(5,0) = 0.01; //object height
+    x_kk(6,0) = 0;    //bias barometer
+    x_kk(7,0) = 0;    //bias acclerometer
+    x_kk(8,0) = 0;    //roll angle
+    x_kk(9,0) = 0;    //angular velocity about x axis
 
     //Filling the predicted covariance estimate p_kk(Initial state prediction)
     p_kk(0,0) = 0;
@@ -391,10 +401,12 @@ void DroneAltitudeFiltering::OpenModel()
     T(1,1) = 0; // vz
     T(2,2) = 0.1; // az
     T(3,3) = 0.0; // pitch
-    T(4,4) = 0.01; // wz
+    T(4,4) = 0.01; // wy
     T(5,5) = 10.00; // z_map
     T(6,6) = 0.05; // b_bar
     T(7,7) = 0.01; // b_accz
+    T(8,8) = 0.0;  //roll
+    T(9,9) = 0.01; //wx
 
 
     //  Filling in the measurement covariance
@@ -403,7 +415,8 @@ void DroneAltitudeFiltering::OpenModel()
     R(2,2) = 0.0027;                        // angular velocity by imu
     R(3,3) = 0.004;                          // alitude by barometer
     R(4,4) = 0.35;						   // pitch angle
-    R(5,5) = 1.0;                             //object height
+    R(5,5) = 0.35;                           //roll angle
+    R(6,6) = 0.0027;
     return;
 }
 
@@ -420,7 +433,7 @@ void DroneAltitudeFiltering::droneLidarCallbackReal(const sensor_msgs::Range &ms
 {
     //setting the measurement flag to true;
     this->measurement_activation[0]=true;
-    this->measurement_activation[5]=false;
+    //this->measurement_activation[5]=false;
 
     //calculating the deltaT
 //    timePrev = timeNow;
@@ -532,6 +545,8 @@ void DroneAltitudeFiltering::droneImuCallback(const sensor_msgs::Imu &msg)
     this->measurement_activation[1]=true;
     //setting the measurement flag to true;
     this->measurement_activation[2]=true;
+    //setting the measurement flag for angular velocity about x
+    this->measurement_activation[6]= true;
 
 
 
@@ -541,6 +556,7 @@ void DroneAltitudeFiltering::droneImuCallback(const sensor_msgs::Imu &msg)
 //    deltaT   = timeNow - timePrev;
 
     angular_velocity        = msg.angular_velocity.y;
+    angular_velocity_x      = msg.angular_velocity.x;
     linear_acceleration_z   = msg.linear_acceleration.z;
 
     //converting to radians
@@ -576,7 +592,10 @@ void DroneAltitudeFiltering::droneImuCallback(const sensor_msgs::Imu &msg)
 void DroneAltitudeFiltering::droneRotationAnglesCallback(const geometry_msgs::Vector3Stamped &msg)
 {
 
+    //measurement flag for pitch angle
     this->measurement_activation[4]=true;
+    //measurement flag for roll angle
+    this->measurement_activation[5]=true;
 
     //calculating the deltaT
 //    timePrev = timeNow;
@@ -585,9 +604,10 @@ void DroneAltitudeFiltering::droneRotationAnglesCallback(const geometry_msgs::Ve
 
 
     pitch_angle = msg.vector.y;
+    roll_angle  = msg.vector.x;
     //converting to radians
     pitch_angle = pitch_angle * (M_PI/180);
-
+    roll_angle  = roll_angle  * (M_PI/180);
     //run();
     //cout << "pitch_angle" << pitch_angle << endl;
 
