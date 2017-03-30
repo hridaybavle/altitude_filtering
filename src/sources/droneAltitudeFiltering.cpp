@@ -379,12 +379,12 @@ bool DroneAltitudeFiltering::run()
 void DroneAltitudeFiltering::OpenModel()
 {
     //Filling the process model x_kk
-    x_kk(0,0) = 0;    //altitude
+    x_kk(0,0) = 0.0;    //altitude
     x_kk(1,0) = 0;    //velocity
     x_kk(2,0) = 0;    //acclerations
     x_kk(3,0) = 0;    //pitch angle
     x_kk(4,0) = 0;    //angular velocity about y axis
-    x_kk(5,0) = 0.01; //object height
+    x_kk(5,0) = 0.0; //object height
     x_kk(6,0) = 0;    //bias barometer
     x_kk(7,0) = 0;    //bias acclerometer
     x_kk(8,0) = 0;    //roll angle
@@ -687,25 +687,25 @@ void DroneAltitudeFiltering::droneMavrosAltitudeCallback(const mavros_msgs::Alti
 //    deltaT   = timeNow - timePrev;
 
 
-    if(!(droneStatus.status == droneMsgsROS::droneStatus::FLYING))
-    {
-        barometer_height = measuredAltitude;
-    }
+//    if(!(droneStatus.status == droneMsgsROS::droneStatus::FLYING))
+//    {
+//        barometer_height = measuredAltitude;
+//    }
 
-    else
-    {
+//    else
+//    {
 
-        if(counter == 0){
-            first_barometer_height        = msg.local;
-            first_measured_lidar_altitude = measuredAltitude;
-            counter++;
-        }
+//        if(counter == 0){
+//            first_barometer_height        = msg.local;
+//            first_measured_lidar_altitude = measuredAltitude;
+//            counter++;
+//       }
 
         //cout << "first barometer height " << first_barometer_height << endl;
         //cout << "first lidar height"      << first_measured_lidar_altitude << endl;
         //cout << "barometer_height - first_barometer_height " << msg.local - first_barometer_height << endl;
-        barometer_height = first_measured_lidar_altitude + (msg.local - first_barometer_height);
-    }
+        barometer_height = msg.local;//first_measured_lidar_altitude + (msg.local - first_barometer_height);
+//    }
 
     barometerData.header.stamp       	= ros::Time::now();
     barometerData.pose.position.z 		= barometer_height;
